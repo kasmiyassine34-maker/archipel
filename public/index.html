@@ -8,7 +8,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Rubik:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,500;1,400;1,500&family=Alegreya+Sans:wght@400;500;700&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,39 +16,42 @@
 
   <!-- Écran d'accueil -->
   <section id="lobby" class="screen">
-    <div class="lobby-card">
-      <p class="eyebrow">Survie en coopération · 1 à 6 joueurs</p>
+    <div class="card sheet">
+      <div class="seal" aria-hidden="true">1 à 6<br>marins</div>
+      <p class="eyebrow">Carnet de bord d'un naufrage</p>
       <h1>L'Archipel</h1>
-      <p class="lede">Votre navire s'est brisé sur les récifs. Récoltez sur les îles voisines, tenez le feu allumé la nuit et reconstruisez un bateau ensemble pour quitter l'archipel.</p>
+      <div class="rule"></div>
+      <p class="lede">Notre navire s'est brisé sur les récifs. Il faudra ramer d'île en île, garder le feu allumé la nuit, et rebâtir ensemble un bateau pour rentrer.</p>
       <form id="join-form" autocomplete="off">
-        <label for="name">Ton nom de naufragé</label>
-        <input id="name" maxlength="16" placeholder="Ex. Yassine" required>
+        <label for="name">Ton nom</label>
+        <input id="name" maxlength="16" placeholder="inscris-le ici" required>
         <div class="join-row">
           <button type="submit" id="create" class="btn primary">Créer une partie</button>
-          <span class="or">ou</span>
+          <span class="or">ou rejoindre</span>
           <input id="code" maxlength="4" placeholder="CODE" aria-label="Code de la partie">
           <button type="button" id="join" class="btn">Rejoindre</button>
         </div>
         <p id="lobby-error" class="error" role="alert" hidden></p>
       </form>
-      <details class="howto" open>
+      <details class="howto">
         <summary>Comment jouer</summary>
         <ul class="keys">
-          <li><kbd>ZQSD</kbd> ou <kbd>flèches</kbd> se déplacer ou ramer</li>
-          <li><kbd>E</kbd> interagir (maintenir pour récolter ou relever un ami)</li>
-          <li><kbd>R</kbd> charger ou décharger la cale d'une barque</li>
-          <li><kbd>F</kbd> manger · <kbd>G</kbd> boire</li>
-          <li><kbd>Clic droit</kbd> signaler un endroit à l'équipe</li>
-          <li><kbd>M</kbd> grande carte · <kbd>H</kbd> aide</li>
+          <li><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> ou les flèches : marcher</li>
+          <li>En barque : <kbd>Z</kbd> ramer, <kbd>S</kbd> reculer, <kbd>Q</kbd> <kbd>D</kbd> tourner</li>
+          <li><kbd>E</kbd> interagir, maintenir pour récolter ou relever un ami</li>
+          <li><kbd>R</kbd> charger ou vider la cale d'une barque</li>
+          <li><kbd>F</kbd> manger, <kbd>G</kbd> boire</li>
+          <li>Clic droit : marquer un endroit d'une croix pour l'équipe</li>
+          <li><kbd>M</kbd> la carte, <kbd>H</kbd> l'aide</li>
         </ul>
-        <p class="hint">Les îles ont chacune leur ressource : bois sur l'Île aux Pins, pierre sur le Rocher, fruits, lin et eau douce sur l'Île Verte. Une barque rame plus vite à deux.</p>
+        <p class="hint">Bois sur l'Île aux Pins, pierre sur le Rocher, fruits, lin et eau douce sur l'Île Verte. Une barque rame plus vite à deux.</p>
       </details>
     </div>
   </section>
 
   <!-- Interface de jeu -->
   <div id="hud" hidden>
-    <div class="panel status">
+    <div class="panel sheet status">
       <div class="bar" data-k="hp"><span class="lbl">Santé</span><i><b></b></i></div>
       <div class="bar" data-k="f"><span class="lbl">Faim</span><i><b></b></i></div>
       <div class="bar" data-k="s"><span class="lbl">Soif</span><i><b></b></i></div>
@@ -59,85 +62,90 @@
       </div>
     </div>
 
-    <div class="panel clock">
-      <div class="day"><span id="day">Jour 1</span><span id="phase">Jour</span></div>
-      <div class="sun"><i id="sun-dot"></i></div>
-      <div class="fire-line">Feu de camp <span id="fire" class="num">2:00</span></div>
+    <div class="panel sheet clock">
+      <div class="day"><span id="day">Jour I</span><span id="phase">Jour</span></div>
+      <div class="ruler"><span class="night"></span><i id="sun-dot"></i></div>
+      <div class="fire-line">Feu de camp : <span id="fire" class="num">2:00</span></div>
     </div>
 
-    <div class="panel room">
+    <div class="panel sheet room">
       <div class="room-head">
         <span>Partie <strong id="room-code">----</strong></span>
         <button id="copy-link" class="btn small" type="button">Copier le lien</button>
       </div>
       <ul id="crew"></ul>
-      <canvas id="minimap" width="192" height="144" aria-label="Mini-carte"></canvas>
+      <canvas id="minimap" width="384" height="288" aria-label="Mini-carte"></canvas>
+      <div class="map-hint"><kbd>M</kbd> grande carte</div>
     </div>
 
-    <div id="ship-track" class="panel ship"></div>
+    <div id="ship-track" class="panel sheet ship"></div>
 
-    <div id="prompt" class="prompt" hidden>
+    <div id="prompt" class="prompt sheet" hidden>
       <span id="prompt-text"></span>
       <i class="progress"><b id="prompt-progress"></b></i>
     </div>
 
     <ol id="log" class="log" aria-live="polite"></ol>
 
-    <aside id="camp" class="panel camp" hidden>
-      <h2>Camp</h2>
+    <aside id="camp" class="panel sheet camp" hidden>
+      <h2>Le camp</h2>
       <section>
         <h3>Coffre commun</h3>
         <ul id="chest" class="res-list chest"></ul>
-        <p class="tiny">Clique une ressource pour en prendre 4. <kbd>E</kbd> près du coffre dépose ton sac et les cales des barques amarrées.</p>
+        <p class="tiny">Clique une ressource pour en prendre 4. <kbd>E</kbd> près du coffre y vide ton sac, ainsi que les cales des barques amarrées.</p>
       </section>
       <section>
         <h3>Atelier</h3>
         <div id="recipes" class="recipes"></div>
       </section>
       <section>
-        <h3>Navire</h3>
+        <h3>Le navire</h3>
         <div id="parts" class="recipes"></div>
         <button id="launch" class="btn primary wide" type="button" hidden>Larguer les amarres</button>
       </section>
     </aside>
 
-    <div id="downed" class="banner danger" hidden>Tu es à terre. Un coéquipier peut te relever en maintenant <kbd>E</kbd> près de toi.</div>
+    <div id="downed" class="banner sheet danger" hidden>Tu es à terre. Un coéquipier peut te relever en maintenant <kbd>E</kbd> près de toi.</div>
     <div id="island-toast" class="island-toast" hidden></div>
-    <div id="note" class="note" hidden></div>
+    <div id="note" class="note sheet" hidden></div>
   </div>
 
   <section id="bigmap" class="screen dim" hidden>
-    <div class="bigmap-card">
-      <canvas id="bigmap-canvas" width="768" height="576" aria-label="Carte de l'archipel"></canvas>
-      <p class="tiny">Appuie sur <kbd>M</kbd> ou <kbd>Échap</kbd> pour fermer.</p>
+    <div class="bigmap-card sheet">
+      <canvas id="bigmap-canvas" width="960" height="720" aria-label="Carte de l'archipel"></canvas>
+      <p class="tiny"><kbd>M</kbd> ou <kbd>Échap</kbd> pour refermer la carte.</p>
     </div>
   </section>
 
   <section id="help" class="screen dim" hidden>
-    <div class="lobby-card">
+    <div class="card sheet">
       <h2>Aide</h2>
+      <div class="rule"></div>
       <ul class="keys">
-        <li><kbd>ZQSD</kbd> ou <kbd>flèches</kbd> se déplacer, ou ramer en barque</li>
+        <li><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> ou les flèches : marcher</li>
+        <li>En barque : <kbd>Z</kbd> ramer en avant, <kbd>S</kbd> reculer, <kbd>Q</kbd> <kbd>D</kbd> tourner. Si la barque touche la côte, recule pour te dégager.</li>
         <li><kbd>E</kbd> interagir : monter ou descendre d'une barque, déposer au coffre, nourrir le feu. Maintenir pour récolter ou relever un coéquipier.</li>
-        <li><kbd>R</kbd> près d'une barque : vider ton sac dans la cale (ou reprendre la cale si ton sac est vide)</li>
-        <li><kbd>F</kbd> manger · <kbd>G</kbd> boire (depuis ton sac, ou depuis le coffre au camp, ou directement à une source)</li>
-        <li><kbd>Clic droit</kbd> poser un signal visible par toute l'équipe</li>
+        <li><kbd>R</kbd> près d'une barque : vider ton sac dans la cale, ou reprendre la cale si ton sac est vide</li>
+        <li><kbd>F</kbd> manger, <kbd>G</kbd> boire : depuis ton sac, au coffre du camp, ou directement à une source</li>
+        <li>Clic droit : marquer un endroit d'une croix rouge pour toute l'équipe</li>
       </ul>
-      <p class="hint">La nuit, le froid blesse toute personne loin du feu ou d'une torche. Le feu brûle 20 s par bois. Construisez les cinq pièces du navire dans l'ordre, puis réunissez toute l'équipe au chantier pour partir.</p>
-      <button id="help-close" class="btn primary" type="button">Reprendre</button>
+      <p class="hint">La nuit, le froid blesse quiconque s'éloigne du feu ou d'une torche. Le feu brûle 20 secondes par bûche. Construisez les cinq pièces du navire dans l'ordre, puis réunissez tout l'équipage au chantier pour partir.</p>
+      <p style="margin:16px 0 0"><button id="help-close" class="btn primary" type="button">Reprendre</button></p>
     </div>
   </section>
 
   <section id="end" class="screen dim" hidden>
-    <div class="lobby-card">
+    <div class="card sheet">
       <p class="eyebrow" id="end-eyebrow"></p>
       <h2 id="end-title"></h2>
+      <div class="rule"></div>
       <p id="end-text" class="lede"></p>
-      <button id="restart" class="btn primary" type="button">Nouvelle partie, même équipe</button>
+      <button id="restart" class="btn primary" type="button">Nouvelle partie, même équipage</button>
     </div>
   </section>
 
   <script src="shared.js"></script>
+  <script src="paper.js"></script>
   <script src="client.js"></script>
 </body>
 </html>

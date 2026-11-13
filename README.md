@@ -2,6 +2,8 @@
 
 Jeu de survie **coopératif en ligne**, en 2D vue du dessus, jouable dans le navigateur à 1 à 6 joueurs.
 
+Direction artistique : un **carnet de cartographe**. La carte est peinte à l'aquarelle sur papier ancien, avec le trait de côte et les courbes de profondeur à l'encre, des hachures pour les rochers et des pointillés pour les plages. Les personnages, les arbres et le navire sont dessinés à la plume. La nuit tombe comme un lavis d'encre indigo que seuls le feu et les torches percent.
+
 Votre navire s'est brisé sur les récifs d'un archipel. Chaque île a sa ressource : il faut ramer de l'une à l'autre, tenir le feu allumé la nuit, manger, boire, et reconstruire ensemble un navire pour s'échapper.
 
 ## Jouer
@@ -11,7 +13,9 @@ Votre navire s'est brisé sur les récifs d'un archipel. Chaque île a sa ressou
 
 | Touche | Action |
 | --- | --- |
-| `ZQSD`, `WASD` ou flèches | se déplacer, ou ramer en barque |
+| `ZQSD`, `WASD` ou flèches | marcher |
+| En barque : `Z` / `S` | ramer en avant / reculer (pour se dégager d'une côte) |
+| En barque : `Q` / `D` | tourner |
 | `E` | interagir : monter ou descendre d'une barque, déposer au coffre, nourrir le feu. **Maintenir** pour récolter ou relever un coéquipier |
 | `R` | près d'une barque : vider son sac dans la cale, ou reprendre la cale si le sac est vide |
 | `F` / `G` | manger / boire (depuis son sac, au coffre du camp, ou directement à une source) |
@@ -54,7 +58,8 @@ server.js          serveur HTTP + WebSocket, boucle de simulation à 20 Hz, éta
 src/world.js       génération de l'archipel (îles, ressources, camp, ponton)
 src/game.js        règles du jeu : survie, récolte, barques, atelier, navire, victoire et défaite
 public/shared.js   constantes et règles partagées entre serveur et navigateur
-public/client.js   rendu 2D (canvas), lumière jour/nuit, commandes, interface
+public/paper.js    peinture de la carte (papier, aquarelle, encre), rose des vents, icônes
+public/client.js   rendu à la plume (canvas), nuit, commandes, interface
 public/index.html  écran d'accueil et interface
 public/style.css   style de l'interface
 test/              tests automatiques

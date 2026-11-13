@@ -3,7 +3,8 @@ const S = require('../public/shared.js');
 const { createWorld } = require('./world');
 const { C, NODES, RECIPES, PARTS, RES, TILE } = S;
 
-const COLORS = ['#e8693f', '#3fa7d6', '#f2c14e', '#86c95b', '#b48ae0', '#f28fb0'];
+// Lavis d'aquarelle pour distinguer les joueurs : vermillon, bleu de Prusse, ocre, vert de vessie, violet, garance.
+const COLORS = ['#c0543a', '#3f6f93', '#c99a3e', '#6f8f45', '#7d5f9a', '#b8687e'];
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const r2 = (v) => Math.round(v * 100) / 100;
 

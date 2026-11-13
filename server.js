@@ -22,6 +22,7 @@ const MIME = {
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/healthz') { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('ok'); }
+  if (url.pathname === '/preview.json') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'public, max-age=3600' }); return res.end(previewJSON()); }
   let file = path.normalize(path.join(PUBLIC, url.pathname === '/' ? 'index.html' : url.pathname));
   if (!file.startsWith(PUBLIC)) { res.writeHead(403); return res.end(); }
   fs.readFile(file, (err, data) => {
@@ -32,6 +33,17 @@ const server = http.createServer((req, res) => {
 });
 
 const rooms = new Map(); // code -> Game
+
+// Archipel d'exemple affiché derrière l'écran d'accueil.
+let preview = null;
+function previewJSON() {
+  if (!preview) {
+    const g = new Game('APERCU', 20261113);
+    const p = g.initPayload({ id: 0, token: '' });
+    preview = JSON.stringify({ W: p.W, H: p.H, tiles: p.tiles, islands: p.islands, camp: p.camp, nodes: p.nodes, boats: p.snap.boats });
+  }
+  return preview;
+}
 
 function newCode() {
   const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ';

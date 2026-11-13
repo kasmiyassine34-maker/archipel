@@ -56,11 +56,12 @@ function createWorld(seed) {
       let best = -9, bi = -1;
       for (const I of isl) {
         const d = Math.hypot(x + 0.5 - I.x, y + 0.5 - I.y);
-        const r = I.r * (0.82 + 0.38 * n1(x / 6 + I.idx * 17, y / 6 + I.idx * 5));
+        // Rayon irrégulier : baies et pointes, pour des côtes qui ne soient pas des cercles.
+        const r = I.r * (0.68 + 0.62 * n1(x / 7 + I.idx * 17, y / 7 + I.idx * 5));
         const h = 1 - d / r;
         if (h > best) { best = h; bi = I.idx; }
       }
-      const h = best + (n2(x / 3.5, y / 3.5) - 0.5) * 0.16;
+      const h = best + (n2(x / 3.2, y / 3.2) - 0.5) * 0.24;
       const i = x + y * W;
       height[i] = h;
       const I = isl[bi];

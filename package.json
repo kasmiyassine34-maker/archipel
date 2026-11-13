@@ -1,0 +1,17 @@
+{
+  "name": "archipel",
+  "version": "0.1.0",
+  "description": "L'Archipel : jeu de survie coopératif en ligne, en 2D, jouable dans le navigateur.",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/bots.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "8.18.0"
+  }
+}

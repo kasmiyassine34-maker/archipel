@@ -26,7 +26,18 @@ class Game {
     this.time = 0.08;
     this.day = 1;
     this.fire = { ...this.camp.fire, fuel: 120 };
-    this.chest = { bois: 6, pierre: 0, fibre: 0, nourriture: 8, eau: 8 };
+    this.chest = { bois: 6, pierre: 0, fibre: 0, nourriture: 8, eau: 8, ferraille: 0 };
+    this.nodeSeq = Math.max(0, ...this.nodes.keys()) + 1;
+    this.newNodes = [];
+    // Carte commune : chaque tuile vue par un membre de l'équipe est révélée à tous.
+    this.seen = new Uint8Array(this.world.W * this.world.H);
+    this.newSeen = [];
+    this.fogT = 0;
+    this.reveal(this.camp.fire.x, this.camp.fire.y, 14);
+    this.newSeen = [];
+    // Tempêtes : la première arrive dans le courant du deuxième jour.
+    this.storm = { s: 'calm', t: C.DAY_LEN * (1.1 + Math.random() * 0.5), w: 0 };
+    this.crabT = 0;
     this.parts = {};
     this.recup = false; this.recupTimer = 0;
     this.boats = [];
@@ -63,6 +74,61 @@ class Game {
 
   log(text, kind = 'info') { this.events.push({ text, kind }); }
 
+  reveal(cx, cy, r) {
+    const { W, H } = this.world;
+    for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(H - 1, Math.floor(cy + r)); y++) {
+      for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(W - 1, Math.floor(cx + r)); x++) {
+        const i = x + y * W;
+        if (this.seen[i] || Math.hypot(x + 0.5 - cx, y + 0.5 - cy) > r) continue;
+        this.seen[i] = 1; this.newSeen.push(i);
+      }
+    }
+  }
+
+  islandName(x, y) {
+    let best = null, bd = 1e9;
+    for (const I of this.world.islands) { const d = Math.hypot(x - I.x, y - I.y) - I.r; if (d < bd) { bd = d; best = I; } }
+    return best ? best.name : 'une plage';
+  }
+
+  // À l'aube, la mer dépose des caisses sur des plages au hasard.
+  spawnCrates(n) {
+    const B = this.world.beaches;
+    if (!B.length) return;
+    const where = [];
+    for (let k = 0; k < n; k++) {
+      let spot = null;
+      for (let tries = 0; tries < 30 && !spot; tries++) {
+        const b = B[Math.floor(Math.random() * B.length)];
+        if ([...this.nodes.values()].some((m) => m.amt > 0 && Math.hypot(m.x - b.x, m.y - b.y) < 1.2)) continue;
+        spot = b;
+      }
+      if (!spot) continue;
+      const node = { id: this.nodeSeq++, k: 'crate', x: spot.x, y: spot.y, amt: 1, rg: 0 };
+      this.nodes.set(node.id, node);
+      this.newNodes.push(node);
+      where.push(this.islandName(spot.x, spot.y));
+    }
+    if (where.length) this.log(`La mer a déposé ${where.length > 1 ? 'des caisses' : 'une caisse'} cette nuit : ${[...new Set(where)].join(', ')}.`, 'ship');
+  }
+
+  // Tempêtes : calme, puis avertissement, puis tempête.
+  tickStorm(dt) {
+    const st = this.storm;
+    st.t -= dt;
+    if (st.t > 0) return;
+    if (st.s === 'calm') {
+      st.s = 'warn'; st.t = C.STORM_WARN; st.w = Math.random() * Math.PI * 2;
+      this.log(`Le ciel se charge : tempête dans ${C.STORM_WARN} secondes ! Rentrez au camp ou gagnez une côte.`, 'warn');
+    } else if (st.s === 'warn') {
+      st.s = 'storm'; st.t = C.STORM_LEN;
+      this.log('La tempête éclate ! La mer emporte les cargaisons et le feu se noie.', 'danger');
+    } else {
+      st.s = 'calm'; st.t = C.DAY_LEN * (0.9 + Math.random() * 0.9);
+      this.log('La tempête s\'éloigne.', 'info');
+    }
+  }
+
   // ---- Joueurs ----
   addPlayer(name, token) {
     const id = this.seq++;
@@ -82,7 +148,7 @@ class Game {
     Object.assign(p, {
       x: f.x + Math.cos(ang) * 1.6, y: f.y + Math.sin(ang) * 1.6 - 0.5, dir: 0,
       hp: 100, faim: 100, soif: 100, downed: false,
-      inv: { bois: 0, pierre: 0, fibre: 0, nourriture: 0, eau: 0 },
+      inv: { bois: 0, pierre: 0, fibre: 0, nourriture: 0, eau: 0, ferraille: 0 },
       tools: { hache: false, pioche: false, torches: 1 }, torchLeft: 0,
       boat: null, lastPos: Date.now(), lastHarvest: 0, lastAct: 0,
     });
@@ -110,10 +176,49 @@ class Game {
     if (this.time >= 1) {
       this.time -= 1; this.day++;
       this.log(`Le jour ${this.day} se lève.`, 'day');
+      this.spawnCrates(C.CRATES_PER_DAY);
     }
     const dark = S.darkness(this.time);
+    this.tickStorm(dt);
+    const storm = this.storm.s === 'storm';
     const prevFuel = this.fire.fuel;
-    this.fire.fuel = Math.max(0, this.fire.fuel - dt);
+    this.fire.fuel = Math.max(0, this.fire.fuel - dt * (storm ? 1 + C.STORM_FIRE : 1));
+
+    // La carte se dévoile autour de chacun.
+    this.fogT += dt;
+    if (this.fogT >= 0.4) {
+      this.fogT = 0;
+      for (const p of this.players.values()) if (p.online) this.reveal(p.x, p.y, C.SIGHT);
+    }
+
+    // Pendant la tempête, une barque en pleine mer peut perdre une partie de sa cargaison.
+    if (storm) for (const b of this.boats) {
+      if (!b.seats.length || this.tileAt(b.x, b.y) !== TILE.DEEP || S.sacCount(b.hold) <= 0) continue;
+      if (Math.random() > C.STORM_SWAMP * dt) continue;
+      let lost = 0;
+      for (let k = 0; k < 3; k++) {
+        const have = RES.filter((r) => (b.hold[r] || 0) > 0);
+        if (!have.length) break;
+        b.hold[have[Math.floor(Math.random() * have.length)]]--; lost++;
+      }
+      const who = this.players.get(b.seats[0]);
+      this.log(`Une vague emporte ${lost} ressource${lost > 1 ? 's' : ''} de la barque${who ? ' de ' + who.name : ''} !`, 'danger');
+    }
+
+    // La nuit, les crabes pillent les fruits du coffre si personne ne monte la garde.
+    if (dark >= 0.75) {
+      this.crabT += dt;
+      if (this.crabT >= C.CRAB_PERIOD) {
+        this.crabT = 0;
+        const guard = this.onlinePlayers().some((p) => !p.downed && dist(p, this.camp.chest) <= C.GUARD_RADIUS);
+        if (!guard && this.chest.nourriture > 0) {
+          const k = Math.min(this.chest.nourriture, 2);
+          this.chest.nourriture -= k;
+          this.events.push({ crab: { x: this.camp.chest.x, y: this.camp.chest.y } });
+          this.log(`Des crabes pillent le coffre : ${k} fruit${k > 1 ? 's' : ''} en moins. Laissez quelqu'un de garde la nuit !`, 'warn');
+        }
+      }
+    } else this.crabT = 0;
     if (prevFuel > 0 && this.fire.fuel === 0) this.log('Le feu de camp s\'est éteint ! Ajoutez du bois.', 'warn');
     if (prevFuel > 45 && this.fire.fuel <= 45 && dark > 0.3) this.log('Le feu faiblit.', 'warn');
 
@@ -139,14 +244,16 @@ class Game {
       }
       p.faim = Math.max(0, p.faim - C.FAIM_RATE * dt);
       p.soif = Math.max(0, p.soif - C.SOIF_RATE * dt);
-      const freezing = cold && !this.isLit(p);
-      p.cold = freezing;
-      const dmg = (p.faim <= 0 ? 1 : 0) + (p.soif <= 0 ? 1.3 : 0) + (freezing ? 1.6 : 0);
+      const lit = this.isLit(p);
+      const freezing = cold && !lit;
+      const soaked = storm && !lit && !freezing; // trempé par la tempête, loin du feu
+      p.cold = freezing || soaked;
+      const dmg = (p.faim <= 0 ? 1 : 0) + (p.soif <= 0 ? 1.3 : 0) + (freezing ? 1.6 : 0) + (soaked ? C.STORM_CHILL : 0);
       if (dmg > 0) p.hp -= dmg * dt;
       else if (p.faim > 40 && p.soif > 40) p.hp = Math.min(100, p.hp + 0.7 * dt);
       if (p.hp <= 0) {
         p.hp = 0; p.downed = true; p.torchLeft = 0;
-        const why = freezing ? 'de froid' : p.soif <= 0 ? 'de soif' : 'de faim';
+        const why = freezing || soaked ? 'de froid' : p.soif <= 0 ? 'de soif' : 'de faim';
         this.log(`${p.name} s'effondre ${why} ! Relevez-le vite.`, 'danger');
       }
     }
@@ -172,6 +279,9 @@ class Game {
     if (m.t === 'dev' && process.env.ARCHIPEL_DEV) { // outils de test, désactivés en production
       if (Number.isFinite(m.time)) this.time = m.time;
       if (m.chest) for (const r of RES) this.chest[r] = m.chest;
+      if (m.storm) this.storm.t = 0;
+      if (m.crates) this.spawnCrates(m.crates);
+      if (m.reveal) this.reveal(this.world.W / 2, this.world.H / 2, 200);
       return;
     }
     if (this.state !== 'playing') return;
@@ -229,8 +339,20 @@ class Game {
     if (now - p.lastHarvest < dur * 1000 * 0.75) return;
     if (S.sacCount(p.inv) >= C.SAC_CAP) return this.reply(p, 'Ton sac est plein. Dépose-le au coffre ou dans une barque (R).');
     p.lastHarvest = now;
+    if (n.k === 'crate') return this.openCrate(p, n);
     p.inv[def.res]++;
     if (n.k !== 'spring') { n.amt--; n.rg = 0; this.dirtyNodes.add(n.id); }
+  }
+
+  openCrate(p, n) {
+    const room = C.SAC_CAP - S.sacCount(p.inv);
+    const bag = ['bois', 'pierre', 'fibre', 'nourriture', 'eau', 'ferraille', 'ferraille', 'nourriture'];
+    const got = {};
+    const k = Math.min(room, 4 + Math.floor(Math.random() * 3));
+    for (let i = 0; i < k; i++) { const r = bag[Math.floor(Math.random() * bag.length)]; got[r] = (got[r] || 0) + 1; p.inv[r]++; }
+    n.amt = 0; this.dirtyNodes.add(n.id);
+    const list = Object.entries(got).map(([r, v]) => `${v} ${S.RES_LABEL[r].toLowerCase()}`).join(', ');
+    this.log(`${p.name} ouvre une caisse échouée : ${list}.`, 'chest');
   }
 
   board(p, id) {
@@ -388,6 +510,7 @@ class Game {
       W: w.W, H: w.H, tiles: Buffer.from(w.tiles).toString('base64'),
       islands: w.islands, camp: this.camp,
       nodes: [...this.nodes.values()].map((n) => [n.id, n.k, n.x, n.y, n.amt]),
+      seen: Buffer.from(this.seen).toString('base64'),
       snap: { ...this.snapshot(true), ev: [] },
     };
   }
@@ -396,6 +519,9 @@ class Game {
     const nodes = full ? [] : [...this.dirtyNodes].map((id) => [id, this.nodes.get(id).amt]);
     return {
       t: 's', time: r2(this.time * 1000) / 1000, day: this.day, st: this.state,
+      storm: { s: this.storm.s, t: Math.ceil(this.storm.t), w: r2(this.storm.w) },
+      fog: full ? [] : this.newSeen,
+      nn: full ? [] : this.newNodes.map((n) => [n.id, n.k, n.x, n.y, n.amt]),
       fire: Math.round(this.fire.fuel), chest: this.chest, parts: this.parts, recup: this.recup,
       players: [...this.players.values()].filter((p) => p.online).map((p) => ({
         id: p.id, n: p.name, c: p.color, x: r2(p.x), y: r2(p.y), d: r2(p.dir || 0),
@@ -409,7 +535,7 @@ class Game {
     };
   }
 
-  flush() { this.events = []; this.dirtyNodes.clear(); }
+  flush() { this.events = []; this.dirtyNodes.clear(); this.newSeen = []; this.newNodes = []; }
 }
 
 module.exports = { Game };

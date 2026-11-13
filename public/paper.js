@@ -262,6 +262,14 @@
       g.beginPath(); g.moveTo(12, 3); g.bezierCurveTo(14, 8, 19, 11, 19, 15); g.arc(12, 15, 7, 0, Math.PI); g.bezierCurveTo(5, 11, 10, 8, 12, 3); g.closePath(); g.fill(); g.stroke();
       g.strokeStyle = 'rgba(255,255,255,.8)'; g.beginPath(); g.arc(12, 15, 4, Math.PI * 0.9, Math.PI * 1.3); g.stroke();
     });
+    out.ferraille = make((g) => {
+      // Une plaque de fer rouillée et un gros clou forgé.
+      g.fillStyle = 'rgb(128,118,108)'; wobblyPoly(g, [[3, 9], [15, 6], [18, 15], [6, 19]], 6, 0.5); g.fill(); g.stroke();
+      g.fillStyle = 'rgba(158,58,36,.55)'; g.beginPath(); g.ellipse(13, 13, 3, 2, 0.4, 0, Math.PI * 2); g.fill();
+      g.fillStyle = PALETTE.ink; for (const [x, y] of [[6, 10], [14, 8], [8, 16]]) { g.beginPath(); g.arc(x, y, 0.9, 0, Math.PI * 2); g.fill(); }
+      g.lineWidth = 2; g.beginPath(); g.moveTo(17, 3); g.lineTo(21, 20); g.stroke();
+      g.lineWidth = 1.3; g.beginPath(); g.moveTo(15, 3.5); g.lineTo(19.5, 2.5); g.stroke();
+    });
     return out;
   }
 

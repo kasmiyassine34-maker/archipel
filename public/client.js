@@ -39,6 +39,10 @@
   let lastIsland = null;
   let ended = false;
   let wantReconnect = false, reconnectDelay = 1000;
+  // Carte commune : seules les tuiles déjà vues par l'équipe sont dessinées sur la carte.
+  let seen = null, fogCanvas = null, fogDirty = false, bigDeco = null;
+  const known = new Set(); // îles déjà aperçues
+  const crabs = [];
 
   // ---------------------------------------------------------------- icônes des ressources
   const RES_ICON = PA.icons();
@@ -153,6 +157,32 @@
     nodes.clear();
     for (const [id, k, x, y, amt] of m.nodes) nodes.set(id, { id, k, x, y, amt });
     indexNodes();
+    seen = new Uint8Array(m.W * m.H);
+    if (m.seen) { const sb = atob(m.seen); for (let i = 0; i < sb.length; i++) seen[i] = sb.charCodeAt(i); }
+    else seen.fill(1); // l'aperçu de l'accueil montre tout
+    known.clear();
+    for (const I of world.islands) if (isSeen(I.x, I.y)) known.add(I.id);
+    fogCanvas = document.createElement('canvas'); fogCanvas.width = m.W + 2; fogCanvas.height = m.H + 2;
+    fogDirty = true; bigDeco = null;
+  }
+  const isSeen = (x, y) => !!(seen && seen[Math.floor(x) + Math.floor(y) * world.W]);
+  function refreshFog() {
+    if (!fogDirty || !fogCanvas) return;
+    fogDirty = false;
+    const FW = world.W + 2, FH = world.H + 2;
+    const g = fogCanvas.getContext('2d'), img = g.createImageData(FW, FH);
+    for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) {
+      const inside = x > 0 && y > 0 && x <= world.W && y <= world.H;
+      if (inside && seen[x - 1 + (y - 1) * world.W]) continue;
+      const o = (x + y * FW) * 4; img.data[o] = 232; img.data[o + 1] = 219; img.data[o + 2] = 186; img.data[o + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+  }
+  // Des crabes détalent du coffre, un fruit volé entre les pinces.
+  function spawnCrabs(at) {
+    for (let i = 0; i < 3; i++) {
+      crabs.push({ x: at.x + (Math.random() - 0.5) * 1.2, y: at.y + 0.4 + Math.random() * 0.6, a: Math.random() * Math.PI * 2, s: Math.random() * 9, t: performance.now(), fruit: i < 2 });
+    }
   }
 
   // Écran d'accueil : la caméra survole lentement un archipel, comme on feuillette un atlas.
@@ -178,7 +208,21 @@
     for (const [id, amt] of s.nodes || []) { const n = nodes.get(id); if (n) n.amt = amt; }
     for (const e of s.ev || []) {
       if (e.ping) { pings.push({ ...e.ping, t: performance.now() }); continue; }
+      if (e.crab) { spawnCrabs(e.crab); continue; }
       addLog(e.text, e.kind);
+    }
+    if (s.nn && s.nn.length) {
+      for (const [id, k, x, y, amt] of s.nn) nodes.set(id, { id, k, x, y, amt });
+      indexNodes();
+    }
+    if (s.fog && s.fog.length && seen) {
+      for (const i of s.fog) seen[i] = 1;
+      fogDirty = true;
+      for (const I of world.islands) {
+        if (known.has(I.id) || !isSeen(I.x, I.y)) continue;
+        known.add(I.id); bigDeco = null;
+        addLog(`Nouvelle île portée sur la carte : ${I.name}.`, 'ship');
+      }
     }
     const seen = new Set();
     for (const p of s.players) {
@@ -302,7 +346,9 @@
       const bv = boatsView.get(boat.id);
       if (boat.seats[0] === myId) {
         // Pilotage d'une vraie barque : avant/arrière pour ramer, gauche/droite pour tourner.
-        const speed = C.SPEED_BOAT * (boat.seats.length >= 2 ? C.BOAT_CREW_BONUS : 1);
+        // En pleine mer pendant la tempête, on rame moins vite et le vent pousse la barque.
+        const rough = snap.storm && snap.storm.s === 'storm' && tileAt(me.x, me.y) === TILE.DEEP;
+        const speed = C.SPEED_BOAT * (boat.seats.length >= 2 ? C.BOAT_CREW_BONUS : 1) * (rough ? 0.7 : 1);
         const thrust = playing ? -iy : 0, turn = playing ? ix : 0;
         const want = thrust > 0 ? speed : thrust < 0 ? -speed * 0.55 : 0;
         me.spd = (me.spd || 0) + (want - (me.spd || 0)) * Math.min(1, dt * (want ? 2.2 : 1.4));
@@ -322,6 +368,10 @@
         if (grounded(nx, me.y, me.boatA) <= here) me.x = nx; else hit = true;
         if (grounded(me.x, ny, me.boatA) <= here) me.y = ny; else hit = true;
         if (hit) me.spd *= 0.3;
+        if (rough) {
+          const dx = Math.cos(snap.storm.w) * 1.1 * dt, dy = Math.sin(snap.storm.w) * 1.1 * dt;
+          if (grounded(me.x + dx, me.y + dy, me.boatA) <= grounded(me.x, me.y, me.boatA)) { me.x += dx; me.y += dy; }
+        }
         me.vx = vx; me.vy = vy;
         me.moving = Math.abs(me.spd) > 0.25;
         if (bv) { bv.x = me.x; bv.y = me.y; bv.a = me.boatA; }
@@ -605,6 +655,91 @@
       }
     });
   }
+  // Débris de l'épave : membrures, bordages et plaques de fer rouillé.
+  function drawWreck(n) {
+    sprite(n.x, n.y, (g) => {
+      groundHatch(g, 14, 4, n.id);
+      g.save(); g.rotate((hash(n.id, 1, 1) - 0.5) * 1.6);
+      if (n.amt > 0) {
+        g.lineWidth = 1.6; g.strokeStyle = P.woodDark;
+        for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(-4 + i * 4, 3, 6 - i, Math.PI * 1.1, Math.PI * 1.9); g.stroke(); }
+        g.lineWidth = 1.15; g.strokeStyle = P.ink;
+        PA.wobblyPoly(g, [[-9, 1], [8, -1], [9, 3], [-8, 4]], n.id, 0.5); g.fillStyle = P.wood; g.fill(); g.stroke();
+        g.fillStyle = 'rgb(128,118,108)'; PA.wobblyPoly(g, [[1, -6], [7, -7], [8, -2], [2, -1]], n.id + 3, 0.4); g.fill(); g.stroke();
+        g.fillStyle = 'rgba(158,58,36,.6)'; g.beginPath(); g.ellipse(5, -4, 1.8, 1.2, 0, 0, Math.PI * 2); g.fill();
+        if (n.amt >= 2) {
+          g.fillStyle = 'rgb(128,118,108)'; PA.wobblyPoly(g, [[-8, -4], [-4, -6], [-3, -2], [-7, -1]], n.id + 5, 0.4); g.fill(); g.stroke();
+        }
+      } else {
+        g.fillStyle = P.wood;
+        for (const [x, y, w] of [[-6, 2, 5], [1, 3, 4], [3, -1, 3]]) { g.fillRect(x, y, w, 1.6); g.strokeRect(x, y, w, 1.6); }
+      }
+      g.restore();
+    });
+  }
+  // Caisse échouée : elle tangue encore un peu dans le ressac.
+  function drawCrate(n) {
+    if (n.amt <= 0) return;
+    sprite(n.x, n.y, (g) => {
+      const bob = Math.sin(now / 600 + n.id) * 0.5;
+      groundHatch(g, 12, 4, n.id);
+      PA.wobblyPoly(g, [[-6, -8 + bob], [6, -8 + bob], [6, 3], [-6, 3]], n.id, 0.4); g.fillStyle = 'rgb(186,140,88)'; g.fill(); g.stroke();
+      g.lineWidth = 0.9; g.beginPath(); g.moveTo(-6, -8 + bob); g.lineTo(6, 3); g.moveTo(6, -8 + bob); g.lineTo(-6, 3); g.stroke();
+      g.lineWidth = 1.15; g.strokeStyle = P.leafDark; g.beginPath(); g.moveTo(-6, 0); g.quadraticCurveTo(-9, 2, -8, 5); g.moveTo(5, 2); g.quadraticCurveTo(8, 3, 9, 5); g.stroke();
+    });
+  }
+  // La carcasse de l'ancien navire, couchée au milieu de l'île.
+  function drawHulk(I) {
+    sprite(I.x, I.y, (g) => {
+      groundHatch(g, 46, 9, 99);
+      g.save(); g.rotate(-0.35);
+      PA.wobblyPoly(g, [[-26, -6], [14, -9], [24, -2], [20, 7], [-22, 8], [-28, 2]], 501, 0.6); g.fillStyle = P.woodDark; g.fill(); g.stroke();
+      g.lineWidth = 0.7; g.beginPath();
+      for (let x = -22; x < 18; x += 5) { if (x > -9 && x < 9) continue; g.moveTo(x, -7); g.lineTo(x, 7); }
+      g.stroke(); g.lineWidth = 1.15;
+      PA.wobblyPoly(g, [[-5, -7], [6, -8], [8, 0], [3, 6], [-6, 5], [-8, -1]], 502, 0.8); g.fillStyle = 'rgb(60,44,30)'; g.fill(); g.stroke();
+      g.lineWidth = 1.4; g.strokeStyle = P.wood;
+      for (const x of [-3, 1, 5]) { g.beginPath(); g.moveTo(x, -6); g.lineTo(x + 1, 5); g.stroke(); }
+      g.strokeStyle = P.ink; g.lineWidth = 2.2; g.beginPath(); g.moveTo(-10, 0); g.lineTo(-32, -18); g.stroke();
+      g.lineWidth = 1.3; g.beginPath(); g.moveTo(-25, -25); g.lineTo(-35, -10); g.stroke();
+      g.fillStyle = 'rgba(244,236,214,.9)'; PA.wobblyPoly(g, [[-27, -21], [-20, -14], [-28, -9]], 503, 0.5); g.fill(); g.stroke();
+      g.restore();
+    });
+  }
+  function drawCrab(c) {
+    const age = (now - c.t) / 1000;
+    const x = c.x + Math.cos(c.a) * age * 1.3, y = c.y + Math.sin(c.a) * age * 1.3;
+    sprite(x, y, (g) => {
+      const k = Math.sin(now / 55 + c.s) * 0.8;
+      g.lineWidth = 0.8;
+      for (const s of [-1, 1]) for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(s * 2, -1 + i * 1.2); g.lineTo(s * 4.6, -2 + i * 1.6 + (i % 2 ? k : -k)); g.stroke(); }
+      g.lineWidth = 1.15;
+      g.fillStyle = 'rgb(176,82,52)'; g.beginPath(); g.ellipse(0, 0, 3.2, 2.2, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+      for (const s of [-1, 1]) { g.beginPath(); g.arc(s * 3.8, -3.2, 1.3, 0, Math.PI * 2); g.fill(); g.stroke(); }
+      g.fillStyle = P.ink; g.fillRect(-1.2, -2.3, 0.8, 0.8); g.fillRect(0.4, -2.3, 0.8, 0.8);
+      if (c.fruit) { g.fillStyle = P.berry; g.beginPath(); g.arc(0, -4, 1.3, 0, Math.PI * 2); g.fill(); g.stroke(); }
+    });
+  }
+  // Tempête : le ciel s'assombrit pendant l'avis, puis pluie à l'encre et éclairs.
+  function drawWeather(sm) {
+    const k = sm.s === 'storm' ? 1 : clamp(1 - sm.t / C.STORM_WARN, 0, 1) * 0.6;
+    ctx.fillStyle = `rgba(52,62,78,${0.3 * k})`; ctx.fillRect(0, 0, CW, CH);
+    if (sm.s !== 'storm') return;
+    const wx = Math.cos(sm.w), n = Math.round((CW * CH) / (6500 * dpr * dpr));
+    const len = 18 * dpr, fall = now * 0.9 * dpr;
+    ctx.save(); ctx.strokeStyle = 'rgba(46,56,76,.42)'; ctx.lineWidth = 1.2 * dpr; ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const sp = 0.8 + hash(i, 3, 5) * 0.4;
+      const x = (((hash(i, 1, 5) * CW + fall * wx * 0.5 * sp) % CW) + CW) % CW;
+      const y = (((hash(i, 2, 5) * CH + fall * sp) % CH) + CH) % CH;
+      ctx.moveTo(x, y); ctx.lineTo(x - wx * len * 0.6, y - len);
+    }
+    ctx.stroke(); ctx.restore();
+    const sec = Math.floor(now / 1000), ph = (now % 1000) / 1000;
+    if (hash(sec, 7, 11) < 0.12 && ph < 0.18) { ctx.fillStyle = `rgba(250,244,226,${0.45 * (1 - ph / 0.18)})`; ctx.fillRect(0, 0, CW, CH); }
+  }
+
   // Le navire en construction : les pièces manquantes sont esquissées en pointillés, comme un plan.
   function drawShip(parts) {
     const y = world.camp.yard, d = world.camp.dock;
@@ -773,8 +908,14 @@
     const vx0 = cam.x - CW / 2 / T - 2, vx1 = cam.x + CW / 2 / T + 2, vy0 = cam.y - CH / 2 / T - 2, vy1 = cam.y + CH / 2 / T + 3;
     const vis = (x, y) => x > vx0 && x < vx1 && y > vy0 && y < vy1;
     const list = [];
-    const drawers = { tree: drawTree, rock: drawRock, bush: drawBush, flax: drawFlax, spring: drawSpring };
-    for (const n of nodes.values()) if (vis(n.x, n.y)) list.push({ y: n.y + (n.k === 'spring' ? -0.5 : 0), f: () => drawers[n.k](n) });
+    const drawers = { tree: drawTree, rock: drawRock, bush: drawBush, flax: drawFlax, spring: drawSpring, wreck: drawWreck, crate: drawCrate };
+    for (const n of nodes.values()) if (vis(n.x, n.y) && drawers[n.k]) list.push({ y: n.y + (n.k === 'spring' ? -0.5 : 0), f: () => drawers[n.k](n) });
+    for (const I of world.islands) if (I.id === 'epave' && vis(I.x, I.y)) list.push({ y: I.y, f: () => drawHulk(I) });
+    for (let i = crabs.length - 1; i >= 0; i--) {
+      const c = crabs[i];
+      if (now - c.t > 3500) { crabs.splice(i, 1); continue; }
+      list.push({ y: c.y, f: () => drawCrab(c) });
+    }
     const camp = world.camp;
     list.push({ y: camp.yard.y - 0.6, f: () => drawShip(snap.parts) });
     list.push({ y: camp.chest.y, f: () => drawChest(camp.chest) });
@@ -825,6 +966,7 @@
     }
     const t = snap.time;
     if (t > 0.58 && t < 0.74) { ctx.fillStyle = `rgba(200,110,60,${0.12 * Math.sin(((t - 0.58) / 0.16) * Math.PI)})`; ctx.fillRect(0, 0, CW, CH); }
+    if (snap.storm && snap.storm.s !== 'calm') drawWeather(snap.storm);
 
     // Signaux : une croix rouge, comme sur une carte au trésor.
     for (let i = pings.length - 1; i >= 0; i--) {
@@ -906,6 +1048,12 @@
     const g = bigBase.getContext('2d');
     g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
     g.drawImage(mapCanvas, 0, 0, W, H);
+  }
+  // Habillage de la grande carte, posé par-dessus le brouillard : cadre, noms des îles connues, rose des vents.
+  function makeBigDeco() {
+    const W = 960, H = 720;
+    bigDeco = document.createElement('canvas'); bigDeco.width = W; bigDeco.height = H;
+    const g = bigDeco.getContext('2d');
     const k = W / world.W;
     // Cadre double, comme une carte imprimée.
     g.strokeStyle = P.ink; g.lineWidth = 3; g.strokeRect(10, 10, W - 20, H - 20);
@@ -914,9 +1062,15 @@
     for (let x = 17; x < W - 17; x += 24) { g.fillStyle = (x / 24) % 2 < 1 ? P.ink : P.paper; g.fillRect(x, 10, 24, 7); g.fillRect(x, H - 17, 24, 7); }
     g.strokeRect(10, 10, W - 20, 7); g.strokeRect(10, H - 17, W - 20, 7);
     // Noms des îles et ressources.
-    const legend = { home: 'le camp', pins: 'bois', roc: 'pierre', verte: 'fruits, lin, eau douce', sable: 'un peu de tout' };
+    const legend = { home: 'le camp', pins: 'bois', roc: 'pierre', verte: 'fruits, lin, eau douce', sable: 'un peu de tout', epave: 'ferraille' };
     g.textAlign = 'center'; g.lineJoin = 'round';
+    if (known.size < world.islands.length) {
+      g.font = 'italic 22px "IM Fell English", Georgia, serif'; g.fillStyle = 'rgba(46,36,26,.45)';
+      g.fillText('terra incognita', W * 0.3, H * 0.8);
+      g.fillText('terra incognita', W * 0.8, H * 0.42);
+    }
     for (const I of world.islands) {
+      if (!known.has(I.id)) continue;
       const x = I.x * k, y = (I.y - I.r - 1.8) * k;
       g.font = '30px "IM Fell English SC", "IM Fell English", Georgia, serif';
       g.lineWidth = 5; g.strokeStyle = 'rgba(238,226,197,.85)'; g.strokeText(I.name, x, y);
@@ -940,12 +1094,32 @@
   }
   function drawOverview(cv, big) {
     if (big && !bigBase) makeBigBase();
+    if (big && !bigDeco) makeBigDeco();
     const base = big ? bigBase : miniBase;
     const g = cv.getContext('2d');
     g.imageSmoothingEnabled = true;
     g.drawImage(base, 0, 0, cv.width, cv.height);
+    // Ce que personne n'a encore vu reste du papier vierge.
+    refreshFog();
+    if (fogCanvas) {
+      // Bord adouci, comme un relevé qui s'estompe vers l'inconnu.
+      g.save(); g.imageSmoothingQuality = 'high'; g.filter = big ? 'blur(7px)' : 'blur(3px)';
+      const t = cv.width / world.W; // le brouillard a une marge d'une tuile pour que le flou ne laisse pas voir les bords
+      g.drawImage(fogCanvas, -t, -t, cv.width + 2 * t, cv.height + 2 * t);
+      g.restore();
+    }
+    if (big) g.drawImage(bigDeco, 0, 0, cv.width, cv.height);
     const k = cv.width / world.W;
     const camp = world.camp;
+    // Caisses échouées repérées : une petite croix rouge.
+    g.save(); g.strokeStyle = P.red; g.lineWidth = big ? 2.5 : 2;
+    for (const n of nodes.values()) {
+      if (n.k !== 'crate' || n.amt <= 0 || !isSeen(n.x, n.y)) continue;
+      const x = n.x * k, y = n.y * k, r = big ? 6 : 4;
+      g.beginPath(); g.moveTo(x - r, y - r); g.lineTo(x + r, y + r); g.moveTo(x + r, y - r); g.lineTo(x - r, y + r); g.stroke();
+    }
+    g.restore();
+    g.lineWidth = big ? 1.5 : 1; g.strokeStyle = P.ink;
     g.lineWidth = big ? 1.5 : 1; g.strokeStyle = P.ink;
     // Le camp : une petite tente.
     const tx = camp.fire.x * k, ty = camp.fire.y * k, ts = big ? 9 : 4;
@@ -989,7 +1163,7 @@
   }
   let noteTimer = 0;
   function showNote(t) { const el = $('note'); el.textContent = t; el.hidden = false; clearTimeout(noteTimer); noteTimer = setTimeout(() => { el.hidden = true; }, 3200); }
-  const ISLAND_NOTE = { home: 'notre camp', pins: 'du bois à perte de vue', roc: 'pierre et éboulis', verte: 'fruits, lin et eau douce', sable: 'un peu de tout' };
+  const ISLAND_NOTE = { home: 'notre camp', pins: 'du bois à perte de vue', roc: 'pierre et éboulis', verte: 'fruits, lin et eau douce', sable: 'un peu de tout', epave: 'ce qui reste de notre navire' };
   function showIsland(I) {
     const el = $('island-toast'); el.hidden = true; void el.offsetWidth;
     el.innerHTML = `${escapeHTML(I.name)}<small>${ISLAND_NOTE[I.id] || ''}</small>`;
@@ -1029,6 +1203,11 @@
     $('sun-dot').style.left = (snap.time * 100) + '%';
     $('fire').textContent = snap.fire > 0 ? fmtTime(snap.fire) : 'éteint';
     $('fire').parentElement.classList.toggle('out', snap.fire <= 30);
+    const sm = snap.storm, se = $('storm');
+    if (sm && sm.s !== 'calm') {
+      se.hidden = false; se.classList.toggle('now', sm.s === 'storm');
+      se.innerHTML = `${sm.s === 'warn' ? 'Avis de tempête' : 'Tempête !'}<span class="num">${fmtTime(Math.max(0, sm.t))}</span>`;
+    } else se.hidden = true;
 
     // Équipage.
     $('crew').innerHTML = snap.players.map((q) => {

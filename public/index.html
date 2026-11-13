@@ -44,7 +44,7 @@
           <li>Clic droit : marquer un endroit d'une croix pour l'équipe</li>
           <li><kbd>M</kbd> la carte, <kbd>H</kbd> l'aide</li>
         </ul>
-        <p class="hint">Bois sur l'Île aux Pins, pierre sur le Rocher, fruits, lin et eau douce sur l'Île Verte. Une barque rame plus vite à deux.</p>
+        <p class="hint">Bois sur l'Île aux Pins, pierre sur le Rocher, fruits, lin et eau douce sur l'Île Verte. La ferraille du gouvernail ne se trouve que sur l'épave, quelque part au large. Gare aux tempêtes et aux crabes.</p>
       </details>
     </div>
   </section>
@@ -79,6 +79,7 @@
     </div>
 
     <div id="ship-track" class="panel sheet ship"></div>
+    <div id="storm" class="storm-alert" hidden></div>
 
     <div id="prompt" class="prompt sheet" hidden>
       <span id="prompt-text"></span>
@@ -129,7 +130,10 @@
         <li><kbd>F</kbd> manger, <kbd>G</kbd> boire : depuis ton sac, au coffre du camp, ou directement à une source</li>
         <li>Clic droit : marquer un endroit d'une croix rouge pour toute l'équipe</li>
       </ul>
-      <p class="hint">La nuit, le froid blesse quiconque s'éloigne du feu ou d'une torche. Le feu brûle 20 secondes par bûche. Construisez les cinq pièces du navire dans l'ordre, puis réunissez tout l'équipage au chantier pour partir.</p>
+      <p class="hint">La nuit, le froid blesse quiconque s'éloigne du feu ou d'une torche. Le feu brûle 20 secondes par bûche. Construisez les six pièces du navire dans l'ordre, puis réunissez tout l'équipage au chantier pour partir.</p>
+      <p class="hint"><b>La carte</b> ne montre que ce que l'équipe a déjà vu : explorez pour la compléter. Quelque part au large gît l'épave de votre ancien navire, seule source de ferraille pour le gouvernail. Elle ne repousse pas.</p>
+      <p class="hint"><b>Tempêtes</b> : elles sont annoncées 45 secondes à l'avance. Pendant la tempête, le feu se consume trois fois plus vite, le froid mord quiconque est loin du feu, et en pleine mer les vagues emportent la cargaison et poussent la barque.</p>
+      <p class="hint"><b>La nuit</b>, les crabes pillent les fruits du coffre si personne ne reste de garde au camp. <b>À l'aube</b>, la mer dépose des caisses sur des plages lointaines : ouvrez-les vite.</p>
       <p style="margin:16px 0 0"><button id="help-close" class="btn primary" type="button">Reprendre</button></p>
     </div>
   </section>

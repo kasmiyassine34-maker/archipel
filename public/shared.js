@@ -5,8 +5,8 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   const TILE = { DEEP: 0, SHALLOW: 1, SAND: 2, GRASS: 3, ROCK: 4 };
 
-  const RES = ['bois', 'pierre', 'fibre', 'nourriture', 'eau'];
-  const RES_LABEL = { bois: 'Bois', pierre: 'Pierre', fibre: 'Fibre', nourriture: 'Fruits', eau: 'Eau' };
+  const RES = ['bois', 'pierre', 'fibre', 'nourriture', 'eau', 'ferraille'];
+  const RES_LABEL = { bois: 'Bois', pierre: 'Pierre', fibre: 'Fibre', nourriture: 'Fruits', eau: 'Eau', ferraille: 'Ferraille' };
 
   // Ressources récoltables. dur = secondes de récolte, regrow = secondes pour regagner 1 unité.
   const NODES = {
@@ -15,6 +15,10 @@
     bush:   { res: 'nourriture', max: 3, dur: 1.0, regrow: 22, label: 'Cueillir des fruits' },
     flax:   { res: 'fibre',      max: 3, dur: 1.2, regrow: 20, label: 'Récolter le lin' },
     spring: { res: 'eau',        max: 99, dur: 0.9, regrow: 0, label: "Puiser de l'eau" },
+    // Débris de l'épave : la ferraille ne repousse pas, il faut la ramener avant qu'il n'y en ait plus.
+    wreck:  { res: 'ferraille',  max: 3, dur: 2.2, regrow: 0, label: "Fouiller l'épave", solid: true },
+    // Caisse échouée à l'aube : un lot de ressources au hasard.
+    crate:  { res: null,         max: 1, dur: 1.8, regrow: 0, label: 'Ouvrir la caisse' },
   };
 
   const RECIPES = {
@@ -29,6 +33,7 @@
   const PARTS = [
     { id: 'quille', label: 'Quille', cost: { bois: 30 } },
     { id: 'coque',  label: 'Coque',  cost: { bois: 40, pierre: 12 } },
+    { id: 'gouvernail', label: 'Gouvernail', cost: { bois: 8, ferraille: 6 } },
     { id: 'mat',    label: 'Mât',    cost: { bois: 20, fibre: 8 } },
     { id: 'voiles', label: 'Voiles', cost: { fibre: 30 } },
     { id: 'vivres', label: 'Vivres', cost: { nourriture: 20, eau: 20 } },
@@ -45,6 +50,9 @@
     EAT_GAIN: 32, DRINK_GAIN: 38,
     REVIVE_TIME: 2.5, CAMP_REACH: 3.2, LAUNCH_RADIUS: 8,
     RECUP_PERIOD: 25,
+    SIGHT: 9,                   // rayon de découverte de la carte autour de chaque joueur
+    STORM_WARN: 45, STORM_LEN: 50, STORM_CHILL: 0.9, STORM_FIRE: 2, STORM_SWAMP: 0.08,
+    CRAB_PERIOD: 15, GUARD_RADIUS: 6, CRATES_PER_DAY: 2,
   };
 
   function walkable(t) { return t >= TILE.SHALLOW; }      // on marche sur le sable, l'herbe, la roche, et on patauge dans l'eau peu profonde

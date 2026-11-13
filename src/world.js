@@ -35,6 +35,9 @@ const ISLANDS = [
     counts: { bush: 18, flax: 18, spring: 2, tree: 6 } },
   { id: 'sable', name: 'Îlot des Sables', x: 104, y: 69, r: 6.5, grassAt: 0.55,
     counts: { flax: 4, bush: 3, rock: 3 } },
+  // Loin au sud-ouest, ce qui reste du navire naufragé : la seule source de ferraille.
+  { id: 'epave', name: "L'Épave",         x: 17,  y: 74, r: 6.5, grassAt: 0.62,
+    counts: { wreck: 8, tree: 2 } },
 ];
 
 function createWorld(seed) {
@@ -115,10 +118,11 @@ function createWorld(seed) {
     bush: (t) => t === TILE.GRASS,
     flax: (t, h, I) => t === TILE.GRASS || (I.id === 'sable' && t === TILE.SAND && h > 0.25),
     spring: (t, h, I) => t === TILE.GRASS && h > 0.55,
+    wreck: (t) => t === TILE.SAND || t === TILE.GRASS,
   };
   let nid = 1;
   for (const I of isl) {
-    for (const kind of ['spring', 'rock', 'tree', 'bush', 'flax']) {
+    for (const kind of ['spring', 'wreck', 'rock', 'tree', 'bush', 'flax']) {
       const want = I.counts[kind] || 0;
       if (!want) continue;
       const cand = [];
@@ -136,7 +140,7 @@ function createWorld(seed) {
         if (used.has(i)) continue;
         const x = i % W, y = (i / W) | 0;
         // Les arbres et rochers gardent un peu d'espace pour qu'on circule entre eux.
-        if ((kind === 'tree' || kind === 'rock') && rand() < 0.35 && [[1,0],[0,1],[-1,0],[0,-1]].some(([dx,dy]) => used.has(x+dx+(y+dy)*W))) continue;
+        if ((kind === 'tree' || kind === 'rock' || kind === 'wreck') && rand() < 0.35 && [[1,0],[0,1],[-1,0],[0,-1]].some(([dx,dy]) => used.has(x+dx+(y+dy)*W))) continue;
         used.add(i);
         const jx = kind === 'spring' ? 0.5 : 0.3 + rand() * 0.4, jy = kind === 'spring' ? 0.5 : 0.3 + rand() * 0.4;
         nodes.push({ id: nid++, k: kind, x: +(x + jx).toFixed(2), y: +(y + jy).toFixed(2), amt: 0, rg: 0 });
@@ -145,8 +149,16 @@ function createWorld(seed) {
     }
   }
 
+  // Plages où la mer peut déposer des caisses (sable au bord de l'eau, loin du camp).
+  const beaches = [];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (tiles[x + y * W] !== TILE.SAND) continue;
+    if (Math.hypot(x + 0.5 - camp.fire.x, y + 0.5 - camp.fire.y) < 12) continue;
+    if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => at(x + dx, y + dy) === TILE.SHALLOW)) beaches.push({ x: x + 0.5, y: y + 0.5, isl: owner[x + y * W] });
+  }
+
   return {
-    W, H, tiles, seed,
+    W, H, tiles, seed, beaches,
     islands: isl.map((I) => ({ id: I.id, name: I.name, x: I.x, y: I.y, r: I.r })),
     nodes, camp,
   };

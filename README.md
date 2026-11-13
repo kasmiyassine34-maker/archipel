@@ -28,7 +28,12 @@ Votre navire s'est brisé sur les récifs d'un archipel. Chaque île a sa ressou
 - **Survie** : la faim et la soif baissent en continu. À zéro, la santé diminue. La nuit, le froid blesse toute personne loin du feu ou d'une torche. Le feu brûle 20 secondes par bois.
 - **Coopération** : un joueur à terre peut être relevé par un autre (maintenir `E` 2,5 s). Si toute l'équipe est à terre, la partie est perdue. Une barque a deux places et rame 45 % plus vite à deux. Sa cale contient 30 ressources, le sac 12.
 - **Atelier** (au camp, avec les ressources du coffre commun) : hache, pioche, torche, barque supplémentaire, récupérateur d'eau de pluie.
-- **Navire** : quille, coque, mât, voiles, vivres, dans cet ordre. Quand tout est construit, toute l'équipe se réunit au chantier et largue les amarres pour gagner.
+- **Navire** : quille, coque, gouvernail, mât, voiles, vivres, dans cet ordre. Quand tout est construit, toute l'équipe se réunit au chantier et largue les amarres pour gagner.
+- **Carte à découvrir** : la carte ne montre que ce que l'équipe a déjà vu. Elle se complète à mesure que chacun explore, et chaque nouvelle île est annoncée à tous.
+- **L'Épave** : au large, au sud-ouest, gît la carcasse de votre ancien navire. C'est la seule source de **ferraille**, indispensable au gouvernail, et elle ne repousse pas.
+- **Tempêtes** : annoncées 45 secondes à l'avance, elles durent 50 secondes. Le feu se consume trois fois plus vite, le froid blesse quiconque est loin du feu, et en pleine mer les vagues emportent la cargaison des barques et les poussent.
+- **Caisses échouées** : chaque matin, la mer dépose deux caisses sur des plages lointaines (croix rouges sur la carte une fois repérées). Une caisse donne 4 à 6 ressources au hasard, dont parfois de la ferraille.
+- **Crabes** : la nuit, si personne ne reste de garde près du coffre, les crabes y volent des fruits.
 - Une journée dure 4 minutes. Une partie complète prend environ 30 à 45 minutes.
 
 ## Lancer en local
@@ -69,8 +74,9 @@ Le serveur fait autorité : il vérifie les distances, les vitesses et les coût
 
 ## Pistes pour la suite
 
-- Tempêtes annoncées qui rendent la traversée risquée (chavirer, perdre sa cargaison).
-- L'épave lointaine avec du métal et des cordes, et des outils améliorés.
+- Rôles au départ (charpentier, pêcheur, éclaireur, soigneur) et tâches à faire à deux.
+- Marée qui ouvre et ferme des passages à pied.
+- Outils améliorés en ferraille.
 - Commandes tactiles pour jouer sur téléphone.
 - Sons et musique d'ambiance.
 - Sauvegarde des parties dans une base de données.

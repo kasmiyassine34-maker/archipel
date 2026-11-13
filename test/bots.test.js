@@ -151,6 +151,64 @@ test('barque : embarquer, ramer sur l\'eau seulement, charger la cale, débarque
   assert.ok(S.walkable(g.tileAt(p.x, p.y)));
 });
 
+test('l\'Épave existe, cachée au départ, et donne de la ferraille qui ne repousse pas', () => {
+  for (const seed of [1, 7, 42, 99999]) {
+    const g = new Game('TEST', seed);
+    const wrecks = [...g.nodes.values()].filter((n) => n.k === 'wreck');
+    assert.ok(wrecks.length >= 4, `assez de débris (graine ${seed})`);
+    const I = g.world.islands.find((x) => x.id === 'epave');
+    assert.ok(!g.seen[Math.floor(I.x) + Math.floor(I.y) * g.world.W], 'île cachée au départ');
+    assert.ok(g.seen[Math.floor(g.camp.fire.x) + Math.floor(g.camp.fire.y) * g.world.W], 'camp visible');
+  }
+  const g = new Game('TEST', 7);
+  const p = g.addPlayer('A', 't'); p.ws = fakeWs();
+  const w = [...g.nodes.values()].find((n) => n.k === 'wreck');
+  p.x = w.x + 0.5; p.y = w.y; p.lastHarvest = 0;
+  g.handle(p, { t: 'harvest', id: w.id });
+  assert.strictEqual(p.inv.ferraille, 1);
+  for (let i = 0; i < 400; i++) { p.hp = 100; p.faim = p.soif = 100; g.tick(0.5); }
+  assert.strictEqual(g.state, 'playing');
+  assert.strictEqual(w.amt, S.NODES.wreck.max - 1, 'pas de repousse');
+  assert.ok(g.seen[Math.floor(w.x) + Math.floor(w.y) * g.world.W], 'le joueur a découvert l\'île');
+});
+
+test('tempête : annoncée, puis elle noie le feu et glace ceux qui sont loin', () => {
+  const g = new Game('TEST', 7);
+  const a = g.addPlayer('A', 'ta'); a.ws = fakeWs();
+  const b = g.addPlayer('B', 'tb'); b.ws = fakeWs();
+  a.tools.torches = b.tools.torches = 0;
+  g.time = 0.2; g.fire.fuel = 300;
+  a.x = g.fire.x + 1; a.y = g.fire.y; b.x = g.fire.x + 30; b.y = g.fire.y;
+  g.storm.t = 0; g.tick(0.05);
+  assert.strictEqual(g.storm.s, 'warn');
+  g.storm.t = 0; g.tick(0.05);
+  assert.strictEqual(g.storm.s, 'storm');
+  const fuel = g.fire.fuel;
+  for (let i = 0; i < 20; i++) { a.faim = b.faim = a.soif = b.soif = 100; g.tick(0.5); }
+  assert.ok(fuel - g.fire.fuel > 25, 'le feu brûle plus vite');
+  assert.ok(a.hp >= 99 && b.hp < 95, 'B est trempé, A au chaud');
+});
+
+test('caisses échouées et crabes pilleurs', () => {
+  const g = new Game('TEST', 7);
+  const p = g.addPlayer('A', 't'); p.ws = fakeWs();
+  g.spawnCrates(2);
+  const crates = [...g.nodes.values()].filter((n) => n.k === 'crate');
+  assert.strictEqual(crates.length, 2);
+  assert.strictEqual(g.snapshot(false).nn.length, 2, 'les clients reçoivent les nouvelles caisses');
+  p.x = crates[0].x + 0.5; p.y = crates[0].y; p.lastHarvest = 0;
+  g.handle(p, { t: 'harvest', id: crates[0].id });
+  assert.ok(S.sacCount(p.inv) >= 4 && crates[0].amt === 0, 'caisse ouverte');
+  // Nuit sans garde : les crabes volent des fruits.
+  p.x = g.camp.chest.x + 20; g.time = 0.8; g.chest.nourriture = 10;
+  for (let i = 0; i < 40; i++) { p.hp = 100; g.tick(0.5); }
+  assert.ok(g.chest.nourriture < 10, 'pillage sans garde');
+  const left = g.chest.nourriture;
+  p.x = g.camp.chest.x + 1; p.y = g.camp.chest.y; g.time = 0.8;
+  for (let i = 0; i < 40; i++) { p.hp = 100; g.tick(0.5); }
+  assert.strictEqual(g.chest.nourriture, left, 'la garde protège le coffre');
+});
+
 test('feu : le bois du sac l\'alimente', () => {
   const g = new Game('TEST', 7);
   const p = g.addPlayer('A', 't'); p.ws = fakeWs();

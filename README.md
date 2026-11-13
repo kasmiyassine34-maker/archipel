@@ -1,35 +1,38 @@
 # L'Archipel
 
-Jeu de survie **coopératif en ligne**, en 2D vue du dessus, jouable dans le navigateur à 1 à 6 joueurs.
+Jeu de survie **coopératif en ligne**, en 2D vue du dessus, jouable dans le navigateur. Pensé pour 3 ou 4 joueurs (de 1 à 6), pour des parties de 1 à 2 heures.
 
-Direction artistique : un **carnet de cartographe**. La carte est peinte à l'aquarelle sur papier ancien, avec le trait de côte et les courbes de profondeur à l'encre, des hachures pour les rochers et des pointillés pour les plages. Les personnages, les arbres et le navire sont dessinés à la plume. La nuit tombe comme un lavis d'encre indigo que seuls le feu et les torches percent.
+Direction artistique : un **carnet de cartographe**. La carte est peinte à l'aquarelle sur papier ancien, avec le trait de côte et les courbes de profondeur à l'encre. Ce que personne n'a encore exploré reste du papier vierge, quadrillé, qui se remplit à mesure que l'équipe avance. La nuit tombe comme un lavis d'encre indigo que seuls le feu et les torches percent.
 
-Votre navire s'est brisé sur les récifs d'un archipel. Chaque île a sa ressource : il faut ramer de l'une à l'autre, tenir le feu allumé la nuit, manger, boire, et reconstruire ensemble un navire pour s'échapper.
+Votre navire s'est brisé sur les récifs d'un archipel qui ne figure sur aucune carte. Au-delà d'un banc de brume, une flamme noire brille chaque nuit. Il faut survivre, explorer, affronter les bêtes et percer le secret du Phare noir.
 
 ## Jouer
 
 1. Ouvrir le jeu, choisir un nom, cliquer **Créer une partie**.
 2. Cliquer **Copier le lien** et l'envoyer à ses amis : le lien contient le code de la partie (4 lettres).
+3. Chacun choisit un métier : cartographe, charpentier, chasseur ou herboriste.
 
 | Touche | Action |
 | --- | --- |
-| `ZQSD`, `WASD` ou flèches | marcher |
-| En barque : `Z` / `S` | ramer en avant / reculer (pour se dégager d'une côte) |
-| En barque : `Q` / `D` | tourner |
-| `E` | interagir : monter ou descendre d'une barque, déposer au coffre, nourrir le feu. **Maintenir** pour récolter ou relever un coéquipier |
-| `R` | près d'une barque : vider son sac dans la cale, ou reprendre la cale si le sac est vide |
-| `F` / `G` | manger / boire (depuis son sac, au coffre du camp, ou directement à une source) |
-| Clic droit | poser un signal visible par toute l'équipe |
-| `M` / `H` | grande carte / aide |
+| `ZQSD`, `WASD` ou flèches | marcher ; en barque : ramer, reculer, tourner |
+| Clic gauche | frapper dans la direction de la souris |
+| `Espace` | esquiver (aucun coup ne porte pendant l'esquive) |
+| `1` à `4` | poings, lance, hache, fronde |
+| `E` | interagir ; **maintenir** pour récolter, lire un fragment, tenir un levier, relever ou soigner |
+| `F` / `G` / `B` | manger / boire / bandage |
+| `R` / `T` | cale de la barque / réparer une coque |
+| `J` / `M` / `H` | carnet des fragments / grande carte / aide |
+| Clic droit | poser une croix visible par toute l'équipe |
 
 ## Règles
 
-- **L'archipel** : l'Île du Naufrage (le camp), l'Île aux Pins (bois), le Rocher (pierre), l'Île Verte (fruits, lin, eau douce) et l'Îlot des Sables (un peu de tout). Les ressources repoussent avec le temps.
-- **Survie** : la faim et la soif baissent en continu. À zéro, la santé diminue. La nuit, le froid blesse toute personne loin du feu ou d'une torche. Le feu brûle 20 secondes par bois.
-- **Coopération** : un joueur à terre peut être relevé par un autre (maintenir `E` 2,5 s). Si toute l'équipe est à terre, la partie est perdue. Une barque a deux places et rame 45 % plus vite à deux. Sa cale contient 30 ressources, le sac 12.
-- **Atelier** (au camp, avec les ressources du coffre commun) : hache, pioche, torche, barque supplémentaire, récupérateur d'eau de pluie.
-- **Navire** : quille, coque, mât, voiles, vivres, dans cet ordre. Quand tout est construit, toute l'équipe se réunit au chantier et largue les amarres pour gagner.
-- Une journée dure 4 minutes. Une partie complète prend environ 30 à 45 minutes.
+- **La carte vivante** : au départ, seule l'Île du Naufrage est connue. Chaque côte aperçue s'ajoute à la carte commune. L'archipel (11 îles) change à chaque partie.
+- **Le mystère** : sept fragments (carnets, épave, stèles, ruine, coffret) racontent l'histoire du Phare noir. Une stèle se relève à deux, la porte d'une ruine s'ouvre avec deux leviers tenus en même temps. Avec trois fragments, un cap traverse le banc de brume qui cache le Phare.
+- **Les fins** : construire le navire au camp (« La fuite ») ; étouffer la flamme noire au sommet du Phare (« La vérité ») ; avec les sept fragments et le Gardien vaincu, accomplir le rituel et voter : partir ou rester (« Les Veilleurs »).
+- **Les bêtes** : crabes sur les plages, varans dans les forêts, Pâles la nuit (ils fuient la lumière), et le Gardien du Phare. Chaque attaque est annoncée par un trait rouge. Crabes et Gardien ont une face blindée : frappez-les de dos. Les bêtes n'approchent pas du feu de camp.
+- **La mer** : récifs cachés qui abîment les coques, courants qui déportent les barques, tempêtes annoncées par le baromètre. Une barque qui coule rejette son équipage sur la côte et perd sa cale. La grande barque (trois places) résiste mieux.
+- **Survie** : faim, soif, froid la nuit loin du feu. Un joueur à terre peut être relevé. Si toute l'équipe tombe, la partie est perdue.
+- Une journée dure 5 minutes.
 
 ## Lancer en local
 
@@ -55,8 +58,8 @@ Limites de l'offre gratuite : le serveur s'endort après environ 15 minutes sans
 
 ```
 server.js          serveur HTTP + WebSocket, boucle de simulation à 20 Hz, état envoyé à 10 Hz
-src/world.js       génération de l'archipel (îles, ressources, camp, ponton)
-src/game.js        règles du jeu : survie, récolte, barques, atelier, navire, victoire et défaite
+src/world.js       génération de l'archipel (îles, ressources, récifs, courants, sites des fragments, bêtes)
+src/game.js        règles du jeu : brume, survie, combat, bêtes, fragments, tempêtes, barques, fins
 public/shared.js   constantes et règles partagées entre serveur et navigateur
 public/paper.js    peinture de la carte (papier, aquarelle, encre), rose des vents, icônes
 public/client.js   rendu à la plume (canvas), nuit, commandes, interface
@@ -69,8 +72,6 @@ Le serveur fait autorité : il vérifie les distances, les vitesses et les coût
 
 ## Pistes pour la suite
 
-- Tempêtes annoncées qui rendent la traversée risquée (chavirer, perdre sa cargaison).
-- L'épave lointaine avec du métal et des cordes, et des outils améliorés.
+- Sauvegarde des parties pour les reprendre un autre jour.
 - Commandes tactiles pour jouer sur téléphone.
 - Sons et musique d'ambiance.
-- Sauvegarde des parties dans une base de données.

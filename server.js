@@ -12,7 +12,7 @@ const PUBLIC = path.join(__dirname, 'public');
 const TICK_MS = 50;        // simulation à 20 Hz
 const SNAP_EVERY = 2;      // état envoyé aux joueurs à 10 Hz
 const RECONNECT_GRACE = 120_000;
-const ROOM_TTL = 10 * 60_000;
+const ROOM_TTL = 20 * 60_000;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -40,7 +40,7 @@ function previewJSON() {
   if (!preview) {
     const g = new Game('APERCU', 20261113);
     const p = g.initPayload({ id: 0, token: '' });
-    preview = JSON.stringify({ W: p.W, H: p.H, tiles: p.tiles, islands: p.islands, camp: p.camp, nodes: p.nodes, boats: p.snap.boats });
+    preview = JSON.stringify({ W: p.W, H: p.H, tiles: p.tiles, currents: p.currents, islands: p.islands, camp: p.camp, phare: p.phare, sites: p.sites, nodes: p.nodes, boats: p.snap.boats, reefs: g.reefs.map((f) => f.i) });
   }
   return preview;
 }

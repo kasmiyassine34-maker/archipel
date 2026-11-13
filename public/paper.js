@@ -11,7 +11,7 @@
   const PAPER = [238, 226, 197];
   const WASH = {
     seaNear: [176, 206, 198], seaFar: [118, 160, 166],
-    sand: [246, 228, 182], grass: [196, 204, 150], forest: [164, 182, 128], rock: [206, 198, 182],
+    sand: [246, 228, 182], grass: [196, 204, 150], forest: [164, 182, 128], rock: [206, 198, 182], ash: [180, 176, 172],
   };
   const PALETTE = {
     ink: 'rgb(46,36,26)', inkSoft: 'rgba(46,36,26,.55)', red: 'rgb(158,58,36)', paper: 'rgb(238,226,197)',
@@ -82,13 +82,20 @@
   // world: { W, H, tiles, islands }. scale: pixels par tuile.
   function paintMap(world, scale = PX, opts = {}) {
     const { W, H, tiles } = world;
-    const T = { DEEP: 0, SHALLOW: 1, SAND: 2, GRASS: 3, ROCK: 4 };
+    const T = { DEEP: 0, SHALLOW: 1, SAND: 2, GRASS: 3, ROCK: 4, REEF: 5 };
     const land = new Uint8Array(W * H), green = new Uint8Array(W * H), rock = new Uint8Array(W * H);
-    for (let i = 0; i < W * H; i++) { land[i] = tiles[i] >= T.SAND; green[i] = tiles[i] >= T.GRASS; rock[i] = tiles[i] === T.ROCK; }
+    for (let i = 0; i < W * H; i++) { const t = tiles[i]; land[i] = t >= T.SAND && t <= T.ROCK; green[i] = t === T.GRASS || t === T.ROCK; rock[i] = t === T.ROCK; }
     const sdLand = sampler(W, H, signedField(W, H, land));
     const sdGreen = sampler(W, H, signedField(W, H, green));
     const sdRock = sampler(W, H, signedField(W, H, rock));
-    const pines = world.islands.find((I) => I.id === 'pins');
+    // Teinte de chaque île selon son type : forêt plus sombre, cendres grises autour du Phare noir.
+    const biomeAt = new Uint8Array(W * H); // 0 herbe, 1 forêt, 2 cendre
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let best = null, bd = 1e9;
+      for (const I of world.islands) { const d = Math.hypot(x + 0.5 - I.x, y + 0.5 - I.y) / I.r; if (d < bd) { bd = d; best = I; } }
+      biomeAt[x + y * W] = best && best.biome === 'foret' ? 1 : best && best.biome === 'phare' ? 2 : 0;
+    }
+    const biome = (tx, ty) => biomeAt[clamp(tx | 0, 0, W - 1) + clamp(ty | 0, 0, H - 1) * W];
 
     const cw = W * scale, ch = H * scale;
     const c = document.createElement('canvas'); c.width = cw; c.height = ch;
@@ -122,7 +129,7 @@
           const sg = sdGreen(tx, ty) + wob * 0.8;
           const sr = sdRock(tx, ty) + wob * 0.7;
           let w = WASH.sand;
-          if (sg < 0) w = pines && Math.hypot(tx - pines.x, ty - pines.y) < pines.r * 1.5 ? WASH.forest : WASH.grass;
+          if (sg < 0) { const k = biome(tx, ty); w = k === 1 ? WASH.forest : k === 2 ? WASH.ash : WASH.grass; }
           if (sr < 0) w = WASH.rock;
           const edge = (s > -0.35 ? (1 + s / 0.35) * 0.06 : 0) + (sg < 0 && sg > -0.3 ? (1 + sg / 0.3) * 0.06 : 0);
           const f = (1 - edge + tone) / 255;
@@ -261,6 +268,14 @@
       g.fillStyle = 'rgb(120,166,196)';
       g.beginPath(); g.moveTo(12, 3); g.bezierCurveTo(14, 8, 19, 11, 19, 15); g.arc(12, 15, 7, 0, Math.PI); g.bezierCurveTo(5, 11, 10, 8, 12, 3); g.closePath(); g.fill(); g.stroke();
       g.strokeStyle = 'rgba(255,255,255,.8)'; g.beginPath(); g.arc(12, 15, 4, Math.PI * 0.9, Math.PI * 1.3); g.stroke();
+    });
+    out.viande = make((g) => {
+      g.fillStyle = 'rgb(184,96,78)';
+      g.beginPath(); g.ellipse(10, 11, 7, 5.5, -0.6, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.fillStyle = 'rgba(255,220,200,.55)'; g.beginPath(); g.ellipse(8, 9.5, 2.5, 1.4, -0.6, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgb(240,230,206)'; g.lineWidth = 1.2;
+      g.beginPath(); g.moveTo(14, 15); g.lineTo(19, 20); g.stroke();
+      g.beginPath(); g.arc(19.5, 19, 1.6, 0, Math.PI * 2); g.arc(18, 21, 1.6, 0, Math.PI * 2); g.fill(); g.stroke();
     });
     return out;
   }

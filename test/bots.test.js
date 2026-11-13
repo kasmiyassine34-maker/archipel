@@ -160,6 +160,207 @@ test('feu : le bois du sac l\'alimente', () => {
   assert.strictEqual(p.inv.bois, 0);
 });
 
+console.log('Nouveau gameplay');
+const tick = (g, secs, step = 0.05) => { for (let t = 0; t < secs; t += step) g.tick(step); };
+const landNear = (g, x, y, rmin = 0.8, rmax = 3) => {
+  for (let r = rmin; r <= rmax; r += 0.2) for (let a = 0; a < 6.28; a += 0.2) {
+    const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+    if (S.isLand(g.tileAt(px, py))) return { x: px, y: py };
+  }
+  return null;
+};
+
+test('la carte part blanche : seule l\'île du camp est connue, et on dessine en explorant', () => {
+  const g = new Game('TEST', 11);
+  const p = g.addPlayer('A', 't'); p.ws = fakeWs();
+  assert.deepStrictEqual([...g.discovered], [0]);
+  const far = g.world.islands.find((I) => I.ring === 2);
+  const i = Math.floor(far.x) + Math.floor(far.y) * g.world.W;
+  assert.strictEqual(g.seen[i], 0, 'île lointaine encore blanche');
+  p.x = far.x; p.y = far.y;
+  tick(g, 0.3);
+  assert.strictEqual(g.seen[i], 1, 'tuiles aperçues');
+  assert.ok(g.discovered.has(far.idx), 'île cartographiée');
+  assert.ok(g.newSeen.length > 0, 'les nouvelles tuiles partent aux joueurs');
+});
+
+test('le monde : 11 îles, 7 fragments, le Phare et son Gardien, pour de nombreuses graines', () => {
+  for (let seed = 1; seed <= 40; seed++) {
+    const g = new Game('TEST', seed);
+    assert.ok(g.world.islands.length >= 10, `îles (graine ${seed})`);
+    const frags = [...g.sites.values()].filter((s) => s.frag).map((s) => s.frag).sort();
+    assert.deepStrictEqual(frags, [1, 2, 3, 4, 5, 6, 7], `fragments (graine ${seed})`);
+    assert.ok(g.lantern && S.walkable(g.tileAt(g.lantern.x, g.lantern.y)), 'lanterne sur terre');
+    assert.ok([...g.beasts.values()].some((b) => b.k === 'gardien'), 'gardien');
+    for (const s of g.sites.values()) assert.ok(S.isLand(g.tileAt(s.x, s.y)), `site ${s.k} sur terre (graine ${seed})`);
+  }
+});
+
+test('combat : la carapace du crabe encaisse de face, le dos est vulnérable, la viande va au chasseur', () => {
+  const g = new Game('TEST', 7);
+  const p = g.addPlayer('A', 't'); p.ws = fakeWs(); p.role = 'chasseur';
+  const crab = [...g.beasts.values()].find((b) => b.k === 'crabe');
+  crab.st = 0; crab.a = 0; // regarde vers l'est
+  p.x = crab.x + 1; p.y = crab.y;
+  p.atkAt = 0;
+  g.handle(p, { t: 'atk', a: Math.PI });
+  const front = crab.mhp - crab.hp;
+  crab.hp = crab.mhp; crab.a = 0;
+  p.x = crab.x - 1; p.atkAt = 0;
+  g.handle(p, { t: 'atk', a: 0 });
+  const back = crab.mhp - crab.hp;
+  assert.ok(front > 0 && back > front * 2, `face ${front} < dos ${back}`);
+  crab.hp = 1; p.atkAt = 0; crab.a = 0;
+  g.handle(p, { t: 'atk', a: 0 });
+  assert.ok(crab.dead);
+  assert.strictEqual(p.inv.viande, 2, 'chasseur : double viande');
+});
+
+test('esquive : on ne prend pas de coup pendant l\'esquive', () => {
+  const g = new Game('TEST', 7);
+  const p = g.addPlayer('A', 't'); p.ws = fakeWs();
+  const crab = [...g.beasts.values()].find((b) => b.k === 'crabe');
+  g.hurt(p, 10, crab);
+  assert.strictEqual(p.hp, 90);
+  g.handle(p, { t: 'dodge' });
+  g.hurt(p, 10, crab);
+  assert.strictEqual(p.hp, 90, 'esquivé');
+});
+
+test('les bêtes n\'approchent pas du feu de camp allumé', () => {
+  const g = new Game('TEST', 7);
+  const crab = [...g.beasts.values()].find((b) => b.k === 'crabe');
+  assert.ok(!g.beastCanWalk(crab, g.fire.x + 1, g.fire.y));
+  g.fire.fuel = 0;
+  const t = g.tileAt(g.fire.x + 1, g.fire.y);
+  assert.strictEqual(g.beastCanWalk(crab, g.fire.x + 1, g.fire.y), t === S.TILE.SAND || t === S.TILE.SHALLOW || t === S.TILE.GRASS);
+});
+
+test('fragments : un carnet se lit, une stèle se relève à deux, une ruine s\'ouvre avec deux leviers', () => {
+  const g = new Game('TEST', 3);
+  const a = g.addPlayer('A', 'ta'); a.ws = fakeWs();
+  const b = g.addPlayer('B', 'tb'); b.ws = fakeWs();
+  const carnet = [...g.sites.values()].find((s) => s.k === 'carnet');
+  a.x = carnet.x + 0.5; a.y = carnet.y; b.x = g.fire.x; b.y = g.fire.y;
+  for (let t = 0; t < S.C.READ_TIME + 0.5; t += 0.2) { g.handle(a, { t: 'work', id: carnet.id }); tick(g, 0.2); }
+  assert.ok(carnet.done && g.frags.has(carnet.frag), 'carnet lu');
+  const stele = [...g.sites.values()].find((s) => s.k === 'stele');
+  a.x = stele.x + 0.5; a.y = stele.y;
+  for (let t = 0; t < S.C.LIFT_TIME + 1; t += 0.2) { g.handle(a, { t: 'work', id: stele.id }); tick(g, 0.2); }
+  assert.ok(!stele.done, 'seul, la stèle ne bouge pas');
+  b.x = stele.x - 0.5; b.y = stele.y;
+  for (let t = 0; t < S.C.LIFT_TIME + 1; t += 0.2) { g.handle(a, { t: 'work', id: stele.id }); g.handle(b, { t: 'work', id: stele.id }); tick(g, 0.2); }
+  assert.ok(stele.done, 'à deux, elle se relève');
+  const ruine = [...g.sites.values()].find((s) => s.k === 'ruine');
+  a.x = ruine.levers[0].x; a.y = ruine.levers[0].y;
+  g.handle(a, { t: 'work', id: ruine.id, l: 0 });
+  tick(g, 0.2);
+  assert.ok(!ruine.open, 'un seul levier ne suffit pas');
+  b.x = ruine.levers[1].x; b.y = ruine.levers[1].y;
+  g.handle(a, { t: 'work', id: ruine.id, l: 0 }); g.handle(b, { t: 'work', id: ruine.id, l: 1 });
+  tick(g, 0.1);
+  assert.ok(ruine.open, 'deux leviers ouvrent la porte');
+});
+
+test('le banc de brume bloque la barque tant qu\'il manque des fragments', () => {
+  const g = new Game('TEST', 5);
+  const p = g.addPlayer('A', 't'); p.ws = fakeWs();
+  const boat = g.boats[0];
+  const ph = g.world.phare;
+  // Une case d'eau juste à l'intérieur du banc.
+  let spot = null;
+  for (let a = 0; a < 6.28 && !spot; a += 0.05) {
+    const x = ph.x + Math.cos(a) * (ph.zone - 0.5), y = ph.y + Math.sin(a) * (ph.zone - 0.5);
+    if (S.boatable(g.tileAt(x, y)) && S.boatable(g.tileAt(x + Math.cos(a), y + Math.sin(a)))) spot = { x, y, a };
+  }
+  boat.x = spot.x + Math.cos(spot.a) * 0.6; boat.y = spot.y + Math.sin(spot.a) * 0.6;
+  boat.seats = [p.id]; p.boat = boat.id; p.x = boat.x; p.y = boat.y;
+  p.lastPos = Date.now() - 300;
+  g.handle(p, { t: 'pos', x: spot.x, y: spot.y, a: 0 });
+  assert.notStrictEqual(boat.x, spot.x, 'refusé sans fragments');
+  for (let n = 1; n <= 3; n++) g.frags.add(n);
+  p.lastPos = Date.now() - 300;
+  g.handle(p, { t: 'pos', x: spot.x, y: spot.y, a: 0 });
+  assert.strictEqual(boat.x, spot.x, 'accepté avec trois fragments');
+});
+
+test('récifs et tempêtes abîment la coque, et une barque qui coule rejette l\'équipage sur la côte', () => {
+  const g = new Game('TEST', 5);
+  const p = g.addPlayer('A', 't'); p.ws = fakeWs();
+  const boat = g.boats[0];
+  const reef = g.reefs[0];
+  boat.x = reef.x - 0.3; boat.y = reef.y; boat.seats = [p.id]; p.boat = boat.id; p.x = boat.x; p.y = boat.y;
+  p.lastPos = Date.now() - 200;
+  g.handle(p, { t: 'pos', x: reef.x, y: reef.y, a: 0 });
+  assert.strictEqual(boat.hull, S.C.HULL - S.C.REEF_DMG, 'choc sur le récif');
+  assert.ok(g.spotted.has(reef.i), 'le récif est repéré');
+  boat.hull = 1;
+  g.sink(boat, 'Test');
+  assert.strictEqual(p.boat, null);
+  assert.ok(S.isLand(g.tileAt(p.x, p.y)), 'échoué sur la terre');
+  assert.ok(boat.hull > 0 && boat.seats.length === 0, 'la barque revient au ponton');
+  g.weather = { st: 'tempete', t: 30, next: 0, wx: 1, wy: 0 };
+  let deep = null;
+  for (let i = 0; i < g.world.tiles.length && !deep; i++) if (g.world.tiles[i] === S.TILE.DEEP && i % g.world.W > 5) deep = { x: (i % g.world.W) + 0.5, y: Math.floor(i / g.world.W) + 0.5 };
+  boat.x = deep.x; boat.y = deep.y; boat.seats = [p.id]; p.boat = boat.id;
+  const h = boat.hull;
+  tick(g, 2);
+  assert.ok(boat.hull < h, 'la tempête abîme la coque en haute mer');
+});
+
+test('fins : étouffer la flamme noire donne « La vérité », le rituel ouvre un vote', () => {
+  const g = new Game('TEST', 5);
+  const a = g.addPlayer('A', 'ta'); a.ws = fakeWs();
+  for (let n = 1; n <= 3; n++) g.frags.add(n);
+  a.x = g.lantern.x + 0.5; a.y = g.lantern.y;
+  for (let t = 0; t < S.C.DOUSE_TIME + 0.5; t += 0.2) { g.handle(a, { t: 'work', id: g.lantern.id }); g.tickSites(0.2, Date.now()); }
+  assert.strictEqual(g.state, 'won'); assert.strictEqual(g.ending, 'verite');
+
+  const h = new Game('TEST', 5);
+  const x = h.addPlayer('X', 'tx'); x.ws = fakeWs();
+  const y = h.addPlayer('Y', 'ty'); y.ws = fakeWs();
+  for (let n = 1; n <= 7; n++) h.frags.add(n);
+  x.x = h.lantern.x + 0.5; x.y = h.lantern.y; y.x = h.lantern.x - 0.5; y.y = h.lantern.y;
+  h.handle(x, { t: 'ritual' });
+  assert.strictEqual(h.state, 'playing', 'le Gardien veille encore');
+  h.gardienDead = true;
+  h.handle(x, { t: 'ritual' });
+  assert.strictEqual(h.state, 'playing', 'il manque les ressources');
+  x.inv.bois = 6; y.inv.pierre = 3; y.inv.eau = 3;
+  h.handle(x, { t: 'ritual' });
+  assert.strictEqual(h.state, 'choice');
+  h.handle(x, { t: 'vote', v: 'rester' });
+  assert.strictEqual(h.state, 'choice', 'on attend tout le monde');
+  h.handle(y, { t: 'vote', v: 'rester' });
+  assert.strictEqual(h.state, 'won'); assert.strictEqual(h.ending, 'veilleurs_rester');
+});
+
+test('métiers : uniques dans l\'équipe ; l\'herboriste soigne les autres', () => {
+  const g = new Game('TEST', 7);
+  const a = g.addPlayer('A', 'ta'); a.ws = fakeWs();
+  const b = g.addPlayer('B', 'tb'); b.ws = fakeWs();
+  g.handle(a, { t: 'role', r: 'herboriste' });
+  g.handle(b, { t: 'role', r: 'herboriste' });
+  assert.strictEqual(a.role, 'herboriste'); assert.strictEqual(b.role, null);
+  b.hp = 40; b.x = a.x + 0.5; b.y = a.y;
+  g.handle(a, { t: 'heal', id: b.id });
+  assert.strictEqual(b.hp, 70);
+});
+
+test('la fronde tire une pierre du sac qui touche une bête à distance', () => {
+  const g = new Game('TEST', 7);
+  const p = g.addPlayer('A', 't'); p.ws = fakeWs();
+  p.tools.fronde = true; p.weapon = 'fronde'; p.inv.pierre = 2;
+  const v = [...g.beasts.values()].find((b) => b.k === 'varan');
+  v.st = 0;
+  for (const b of [...g.beasts.values()]) if (b !== v) g.beasts.delete(b.id);
+  p.x = v.x - 4; p.y = v.y + 0.3;
+  g.handle(p, { t: 'atk', a: Math.atan2(v.y - (p.y - 0.3), v.x - p.x) });
+  assert.strictEqual(p.inv.pierre, 1);
+  for (let i = 0; i < 10; i++) g.tickProjectiles(0.05);
+  assert.ok(v.hp < v.mhp, 'touché');
+});
+
 // ---------------------------------------------------------------- réseau
 async function networkTest() {
   console.log('Réseau (deux joueurs simulés)');

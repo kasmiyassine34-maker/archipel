@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>L'Archipel</title>
-  <meta name="description" content="Jeu de survie coopératif en ligne : naufragés sur un archipel, construisez ensemble un navire pour vous échapper.">
+  <meta name="description" content="Jeu de survie coopératif en ligne : naufragés sur un archipel noyé de brume, percez ensemble le secret du Phare noir.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,11 +17,11 @@
   <!-- Écran d'accueil -->
   <section id="lobby" class="screen">
     <div class="card sheet">
-      <div class="seal" aria-hidden="true">1 à 6<br>marins</div>
+      <div class="seal" aria-hidden="true">3 ou 4<br>marins</div>
       <p class="eyebrow">Carnet de bord d'un naufrage</p>
       <h1>L'Archipel</h1>
       <div class="rule"></div>
-      <p class="lede">Notre navire s'est brisé sur les récifs. Il faudra ramer d'île en île, garder le feu allumé la nuit, et rebâtir ensemble un bateau pour rentrer.</p>
+      <p class="lede">Notre navire s'est brisé sur les récifs d'un archipel qui ne figure sur aucune carte. Au-delà de la brume, une flamme noire brille chaque nuit. Il faudra explorer, survivre aux bêtes et aux tempêtes, et comprendre ce qui se cache ici.</p>
       <form id="join-form" autocomplete="off">
         <label for="name">Ton nom</label>
         <input id="name" maxlength="16" placeholder="inscris-le ici" required>
@@ -36,15 +36,13 @@
       <details class="howto">
         <summary>Comment jouer</summary>
         <ul class="keys">
-          <li><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> ou les flèches : marcher</li>
-          <li>En barque : <kbd>Z</kbd> ramer, <kbd>S</kbd> reculer, <kbd>Q</kbd> <kbd>D</kbd> tourner</li>
-          <li><kbd>E</kbd> interagir, maintenir pour récolter ou relever un ami</li>
-          <li><kbd>R</kbd> charger ou vider la cale d'une barque</li>
-          <li><kbd>F</kbd> manger, <kbd>G</kbd> boire</li>
-          <li>Clic droit : marquer un endroit d'une croix pour l'équipe</li>
-          <li><kbd>M</kbd> la carte, <kbd>H</kbd> l'aide</li>
+          <li><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> ou les flèches : marcher, ramer et tourner en barque</li>
+          <li>Clic gauche : frapper vers la souris · <kbd>Espace</kbd> esquiver · <kbd>1</kbd> à <kbd>4</kbd> changer d'arme</li>
+          <li><kbd>E</kbd> interagir, maintenir pour récolter, lire, relever un ami</li>
+          <li><kbd>F</kbd> manger, <kbd>G</kbd> boire, <kbd>B</kbd> bandage, <kbd>R</kbd> cale de la barque</li>
+          <li><kbd>J</kbd> le carnet des fragments, <kbd>M</kbd> la carte, <kbd>H</kbd> l'aide</li>
         </ul>
-        <p class="hint">Bois sur l'Île aux Pins, pierre sur le Rocher, fruits, lin et eau douce sur l'Île Verte. Une barque rame plus vite à deux.</p>
+        <p class="hint">La carte est blanche : elle se dessine à mesure que vous explorez. Trouvez les fragments de l'histoire sur les îles. Avec trois fragments, un cap se dessine à travers le banc de brume.</p>
       </details>
     </div>
   </section>
@@ -52,6 +50,7 @@
   <!-- Interface de jeu -->
   <div id="hud" hidden>
     <div class="panel sheet status">
+      <button id="role-line" class="role-line" type="button" title="Changer de métier"></button>
       <div class="bar" data-k="hp"><span class="lbl">Santé</span><i><b></b></i></div>
       <div class="bar" data-k="f"><span class="lbl">Faim</span><i><b></b></i></div>
       <div class="bar" data-k="s"><span class="lbl">Soif</span><i><b></b></i></div>
@@ -59,6 +58,7 @@
         <div class="sac-head"><span>Sac</span><span id="sac-count" class="num">0/12</span></div>
         <ul id="sac" class="res-list"></ul>
         <div id="tools" class="tools"></div>
+        <div id="weapons" class="weapons"></div>
       </div>
     </div>
 
@@ -66,6 +66,7 @@
       <div class="day"><span id="day">Jour I</span><span id="phase">Jour</span></div>
       <div class="ruler"><span class="night"></span><i id="sun-dot"></i></div>
       <div class="fire-line">Feu de camp : <span id="fire" class="num">2:00</span></div>
+      <div id="weather" class="weather-line">Mer calme</div>
     </div>
 
     <div class="panel sheet room">
@@ -74,8 +75,8 @@
         <button id="copy-link" class="btn small" type="button">Copier le lien</button>
       </div>
       <ul id="crew"></ul>
-      <canvas id="minimap" width="384" height="288" aria-label="Mini-carte"></canvas>
-      <div class="map-hint"><kbd>M</kbd> grande carte</div>
+      <canvas id="minimap" width="384" height="287" aria-label="Mini-carte"></canvas>
+      <div class="map-hint"><kbd>M</kbd> grande carte · <kbd>J</kbd> carnet</div>
     </div>
 
     <div id="ship-track" class="panel sheet ship"></div>
@@ -99,7 +100,11 @@
         <div id="recipes" class="recipes"></div>
       </section>
       <section>
-        <h3>Le navire</h3>
+        <h3>Chantier</h3>
+        <div id="repairs" class="recipes"></div>
+      </section>
+      <section>
+        <h3>Le navire (fin « La fuite »)</h3>
         <div id="parts" class="recipes"></div>
         <button id="launch" class="btn primary wide" type="button" hidden>Larguer les amarres</button>
       </section>
@@ -107,30 +112,68 @@
 
     <div id="downed" class="banner sheet danger" hidden>Tu es à terre. Un coéquipier peut te relever en maintenant <kbd>E</kbd> près de toi.</div>
     <div id="island-toast" class="island-toast" hidden></div>
+    <div id="boss" class="boss sheet" hidden><span>Le Gardien noir</span><i><b id="boss-bar"></b></i></div>
+    <div id="frag-toast" class="frag-toast sheet" hidden></div>
     <div id="note" class="note sheet" hidden></div>
   </div>
 
   <section id="bigmap" class="screen dim" hidden>
     <div class="bigmap-card sheet">
-      <canvas id="bigmap-canvas" width="960" height="720" aria-label="Carte de l'archipel"></canvas>
+      <canvas id="bigmap-canvas" width="960" height="717" aria-label="Carte de l'archipel"></canvas>
       <p class="tiny"><kbd>M</kbd> ou <kbd>Échap</kbd> pour refermer la carte.</p>
     </div>
   </section>
 
   <section id="help" class="screen dim" hidden>
-    <div class="card sheet">
+    <div class="card sheet wide-card">
       <h2>Aide</h2>
       <div class="rule"></div>
       <ul class="keys">
-        <li><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> ou les flèches : marcher</li>
-        <li>En barque : <kbd>Z</kbd> ramer en avant, <kbd>S</kbd> reculer, <kbd>Q</kbd> <kbd>D</kbd> tourner. Si la barque touche la côte, recule pour te dégager.</li>
-        <li><kbd>E</kbd> interagir : monter ou descendre d'une barque, déposer au coffre, nourrir le feu. Maintenir pour récolter ou relever un coéquipier.</li>
-        <li><kbd>R</kbd> près d'une barque : vider ton sac dans la cale, ou reprendre la cale si ton sac est vide</li>
-        <li><kbd>F</kbd> manger, <kbd>G</kbd> boire : depuis ton sac, au coffre du camp, ou directement à une source</li>
-        <li>Clic droit : marquer un endroit d'une croix rouge pour toute l'équipe</li>
+        <li><kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd> ou les flèches : marcher. En barque : <kbd>Z</kbd> ramer, <kbd>S</kbd> reculer, <kbd>Q</kbd> <kbd>D</kbd> tourner.</li>
+        <li>Clic gauche : frapper dans la direction de la souris. <kbd>Espace</kbd> : esquiver (on ne prend pas de coup pendant l'esquive). <kbd>1</kbd> à <kbd>4</kbd> : poings, lance, hache, fronde.</li>
+        <li><kbd>E</kbd> : interagir. Maintenir pour récolter, lire un fragment, relever ou soigner un coéquipier.</li>
+        <li><kbd>F</kbd> manger, <kbd>G</kbd> boire, <kbd>B</kbd> bandage, <kbd>R</kbd> charger ou vider la cale, <kbd>T</kbd> réparer une coque.</li>
+        <li><kbd>J</kbd> : le carnet des fragments. <kbd>M</kbd> : la carte. Clic droit : poser une croix pour l'équipe.</li>
       </ul>
-      <p class="hint">La nuit, le froid blesse quiconque s'éloigne du feu ou d'une torche. Le feu brûle 20 secondes par bûche. Construisez les cinq pièces du navire dans l'ordre, puis réunissez tout l'équipage au chantier pour partir.</p>
+      <h3>Le but</h3>
+      <p class="hint">La carte est blanche et se dessine en explorant. Sept fragments racontent l'histoire du Phare noir. Avec trois, un cap traverse le banc de brume. Au Phare, étouffez la flamme noire (fin « La vérité »), ou, avec les sept fragments et le Gardien vaincu, accomplissez le rituel (fin « Les Veilleurs »). Construire le navire au camp permet aussi de fuir (fin « La fuite »).</p>
+      <h3>Les dangers</h3>
+      <p class="hint">Chaque bête annonce son coup par un trait rouge : esquivez-le. Le crabe et le Gardien ont une face blindée, frappez-les de dos. Le varan charge en ligne droite puis reste étourdi. La nuit, les Pâles sortent de la brume : ils fuient la lumière. Les récifs abîment les coques, les tempêtes aussi en haute mer. Les courants déportent les barques.</p>
+      <h3>À plusieurs</h3>
+      <p class="hint">Chacun choisit un métier. Les leviers des ruines se tiennent à deux, les stèles se relèvent à deux, la grande barque va plus vite avec trois rameurs. Un joueur à terre se relève en maintenant <kbd>E</kbd> près de lui.</p>
       <p style="margin:16px 0 0"><button id="help-close" class="btn primary" type="button">Reprendre</button></p>
+    </div>
+  </section>
+
+  <section id="journal" class="screen dim" hidden>
+    <div class="card sheet wide-card journal-card">
+      <p class="eyebrow">Carnet des fragments · <span id="journal-count">0 / 7</span></p>
+      <h2>Le secret du Phare noir</h2>
+      <div class="rule"></div>
+      <p id="journal-lead" class="hint"></p>
+      <ol id="journal-list" class="journal-list"></ol>
+      <p style="margin:14px 0 0"><button class="btn primary" type="button" data-close>Refermer</button></p>
+    </div>
+  </section>
+
+  <section id="roles" class="screen dim" hidden>
+    <div class="card sheet wide-card">
+      <p class="eyebrow">Avant de partir explorer</p>
+      <h2>Choisis ton métier</h2>
+      <div class="rule"></div>
+      <p class="hint">Chaque métier est unique dans l'équipe. À trois, l'un d'eux manquera : à vous de compenser.</p>
+      <div id="role-cards" class="role-cards"></div>
+      <p style="margin:14px 0 0"><button class="btn" type="button" data-close>Plus tard</button></p>
+    </div>
+  </section>
+
+  <section id="vote" class="screen dim" hidden>
+    <div class="card sheet wide-card">
+      <p class="eyebrow">Au sommet du Phare noir</p>
+      <h2>Quelle fin choisissez-vous ?</h2>
+      <div class="rule"></div>
+      <div id="vote-options" class="role-cards"></div>
+      <p id="vote-wait" class="tiny"></p>
     </div>
   </section>
 
@@ -140,6 +183,7 @@
       <h2 id="end-title"></h2>
       <div class="rule"></div>
       <p id="end-text" class="lede"></p>
+      <ul id="end-stats" class="end-stats"></ul>
       <button id="restart" class="btn primary" type="button">Nouvelle partie, même équipage</button>
     </div>
   </section>

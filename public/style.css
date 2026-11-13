@@ -137,7 +137,7 @@ input::placeholder { color: var(--ink-3); font-style: italic; }
 .fire-line .num { font-style: normal; font-weight: 700; color: var(--ink); }
 .fire-line.out .num { color: var(--red); }
 
-.ship { top: 106px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 6px 14px; white-space: nowrap; }
+.ship { top: 128px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 6px 14px; white-space: nowrap; }
 .ship .title { font: 15px var(--font-caps); }
 .ship span.step { font: 15px var(--font-hand); color: var(--ink-3); display: inline-flex; align-items: center; gap: 4px; }
 .ship span.step::before { content: ''; width: 10px; height: 10px; border: 1.5px solid currentColor; display: inline-block; }
@@ -217,3 +217,70 @@ input::placeholder { color: var(--ink-3); font-style: italic; }
   #crew { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ---------- Nouveautés : métiers, armes, carnet, météo ---------- */
+.res-list { grid-template-columns: repeat(6, 1fr); }
+.status { width: 262px; }
+.role-line {
+  all: unset; cursor: pointer; font: italic 15px var(--font-hand); color: var(--ink-2);
+  border-bottom: 1px solid var(--ink-3); padding-bottom: 4px;
+}
+.role-line b { font: 17px var(--font-caps); font-style: normal; color: var(--red); }
+.role-line:focus-visible { outline: 2px solid var(--red); }
+.weapons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-top: 7px; }
+.wpn {
+  font: 600 12px var(--font-body); color: var(--ink); background: rgba(255,252,240,.4); border: 1px solid var(--ink-3);
+  padding: 3px 0 4px; cursor: pointer; display: grid; justify-items: center; gap: 2px;
+}
+.wpn kbd { font-size: 10px; padding: 1px 4px; box-shadow: 0 1px 0 var(--ink); min-width: 0; }
+.wpn.on { border-color: var(--red); background: rgba(255,252,240,.9); color: var(--red); box-shadow: inset 0 -2px 0 var(--red); }
+.wpn:disabled { opacity: .35; cursor: not-allowed; }
+.weather-line { font: italic 14px var(--font-hand); color: var(--ink-2); }
+.weather-line.annonce { color: var(--ochre); font-weight: 500; }
+.weather-line.tempete { color: var(--red); font-weight: 500; animation: blink 1.2s steps(2) infinite; }
+.ship .frags { display: inline-flex; gap: 3px; }
+.ship .frags i { font: 12px var(--font-caps); font-style: normal; min-width: 21px; text-align: center; padding: 1px 2px; border: 1px solid var(--ink-3); color: var(--ink-3); }
+.ship .frags i.on { border-color: var(--ink); background: var(--red); color: var(--paper); }
+.ship .sep { width: 1px; align-self: stretch; background: var(--ink-3); }
+#crew em { font: italic 13px var(--font-hand); color: var(--ink-2); margin-left: 5px; }
+
+.wide-card { width: min(720px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; }
+.wide-card h3 { font: 19px var(--font-caps); color: var(--red); margin: 14px 0 4px; }
+.journal-list { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 10px; }
+.journal-list li { display: grid; grid-template-columns: 44px 1fr; gap: 10px; align-items: start; padding: 8px 10px; border: 1px solid var(--ink-3); background: rgba(255,252,240,.35); }
+.journal-list li .num { font: 24px var(--font-caps); color: var(--red); text-align: center; }
+.journal-list li h3 { font: 18px var(--font-display); color: var(--ink); margin: 0 0 2px; }
+.journal-list li p { margin: 0; font: 16px/1.45 var(--font-hand); }
+.journal-list li.missing { opacity: .5; }
+.journal-list li.missing p { font-style: italic; }
+.journal-list li.focus { border-color: var(--red); box-shadow: inset 3px 0 0 var(--red); }
+.role-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 12px; }
+.role-card {
+  font: inherit; color: var(--ink); text-align: left; cursor: pointer; display: grid; gap: 4px; align-content: start;
+  background: rgba(255,252,240,.45); border: 1.5px solid var(--ink-3); padding: 10px 12px;
+}
+.role-card:hover:not(:disabled) { border-color: var(--ink); background: rgba(255,252,240,.9); }
+.role-card:disabled { opacity: .5; cursor: not-allowed; }
+.role-card.mine { border-color: var(--red); box-shadow: inset 0 0 0 1px var(--red); }
+.role-card .nm { font: 20px var(--font-caps); }
+.role-card .short { font: italic 15px var(--font-display); color: var(--red); }
+.role-card .ds { font: 14px/1.4 var(--font-hand); color: var(--ink-2); }
+.role-card .by { font: italic 13px var(--font-hand); color: var(--red); }
+.frag-toast {
+  position: fixed; z-index: 9; left: 50%; bottom: 140px; transform: translateX(-50%);
+  width: min(520px, calc(100% - 32px)); padding: 14px 20px 12px; cursor: pointer; animation: rise .5s ease;
+}
+.frag-toast h3 { font: 22px var(--font-display); margin: 0 0 6px; }
+.frag-text { font: 17px/1.5 var(--font-hand); margin: 0; }
+@keyframes rise { from { opacity: 0; transform: translate(-50%, 16px); } }
+.boss { position: fixed; z-index: 6; top: 172px; left: 50%; transform: translateX(-50%); width: min(420px, calc(100% - 32px)); padding: 6px 14px 9px; text-align: center; }
+.boss span { font: 17px var(--font-caps); color: var(--red); }
+.boss i { display: block; height: 9px; border: 1.5px solid var(--ink); margin-top: 4px; background: rgba(255,252,240,.5); }
+.boss b { display: block; height: 100%; background: repeating-linear-gradient(-45deg, #3a3048 0 3px, #5a4a6a 3px 5px); transition: width .2s; }
+.end-stats { list-style: none; padding: 0; margin: 0 0 16px; display: flex; flex-wrap: wrap; gap: 6px 14px; font: italic 15px var(--font-hand); color: var(--ink-2); }
+.end-stats li.miss { flex-basis: 100%; color: var(--red); }
+.log li.mystery { border-color: #5a4a6a; color: #3a3048; font-weight: 500; }
+.log li.island { border-color: var(--sea-ink); }
+.log li.hunt { border-color: var(--ochre); }
+canvas#world { cursor: crosshair; }
+@media (max-width: 900px) { .status { width: 220px; } .boss { top: auto; bottom: 110px; } }
